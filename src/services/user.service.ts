@@ -1,30 +1,18 @@
 import { Schema } from "mongoose";
 import { UserRepository } from "../repositories/user.repository";
-import utility from "../utils/utility";
 import { CustomError } from "../utils/custom-error";
 import { IUpdateUser } from "../interfaces/auth.interface";
 import { IUser } from "../models/user.model";
 import { HTTP_STATUS } from "../utils/httpStatus";
-import { logger } from "../utils/logger";
 import { IPagination } from "../interfaces/news.interface";
 
 export class UserServices {
   constructor(private userRepository: UserRepository = new UserRepository()) { }
 
-  async updateProfilePicture(
-    userId: Schema.Types.ObjectId,
-    image: Express.Multer.File
-  ): Promise<string> {
-    const result = await utility.uploadMedia(image);
-    const user = await this.userRepository.updateUser(userId, { avatarUrl: result.url });
-    return user.avatarUrl;
-  }
-
   async updateStatus(id: any): Promise<IUser> {
     if (!id) {
       throw new CustomError("Please provide at least one field to update", HTTP_STATUS.BAD_REQUEST);
     }
-    logger.info(`Updating status for user with ID: ${id}`);
     const updatedUser = await this.userRepository.updateStatus(id);
     return updatedUser;
   }
@@ -69,6 +57,11 @@ export class UserServices {
       throw new CustomError("Referral code is required", HTTP_STATUS.BAD_REQUEST);
     }
     const users = await this.userRepository.getReferredUsers(referralCode);
+    if (users.length === 0) throw new CustomError("No users found", HTTP_STATUS.NOT_FOUND);
+    return users;
+  }
+  async getAllAdmins(query:any): Promise<IUser[]> {
+    const users = await this.userRepository.getAllAdmins(query);
     if (users.length === 0) throw new CustomError("No users found", HTTP_STATUS.NOT_FOUND);
     return users;
   }

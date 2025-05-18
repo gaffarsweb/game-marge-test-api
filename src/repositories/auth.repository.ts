@@ -14,6 +14,10 @@ import referralHistory from "../models/referralHistory.model";
 import { transactionStatus, transactionType } from "../utils/enums";
 import Transaction from "../models/transaction.model";
 import gamergeCoinConfigurationModel from "../models/gamergeCoinConfiguration.model";
+import enumDatas from '../utils/enums';
+import permissionModel from "../models/permission.model";
+import permissions from "../utils/permissions.json"
+import inGameCoinReferralHistory from "../models/inGameCoinreferralHistory.model";
 
 export class AuthRepository implements IAuthRepository {
   async createUser(payload: IRegister): Promise<any> {
@@ -22,6 +26,20 @@ export class AuthRepository implements IAuthRepository {
       if (!referrer) {
         throw new CustomError("Invalid referral code", HTTP_STATUS.BAD_REQUEST);
       }
+    }
+    
+    const capitalizeName = (firstName: String) => {
+      return firstName
+        .split(" ")
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(" ");
+    };
+
+    if (payload?.firstName) {
+      payload.firstName = capitalizeName(payload?.firstName || '-')
+    }
+    if(payload?.lastName){
+      payload.lastName=capitalizeName(payload.lastName || '-');
     }
 
     // Generate a referral code for the new user
@@ -41,7 +59,7 @@ export class AuthRepository implements IAuthRepository {
     }
     await InGameCoinWallet.create({
       userId: newUser?._id,
-      balance: 100
+      balance: 0
     })
     // Store wallet details in the database
     await Wallet.create({
@@ -53,6 +71,35 @@ export class AuthRepository implements IAuthRepository {
     });
 
     return { ...newUser, walletAddress: wallet.address };
+
+  }
+  async addAdmin(payload: any): Promise<any> {
+
+
+    const capitalizeName = (firstName: String) => {
+      return firstName
+        .split(" ")
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(" ");
+    };
+
+    if (payload?.firstName) {
+      payload.firstName = capitalizeName(payload?.firstName || '-')
+    };
+    if(payload?.lastName){
+      payload.lastName=capitalizeName(payload.lastName || '-');
+    }
+    // Generate a referral code for the new user
+    const referralCode = utility.generateReferralCode();
+    // Create the user record
+    const newUser = await userModel.create({ ...payload, referralCode });
+
+    if (!newUser) {
+      throw new CustomError("Error while creating user.", HTTP_STATUS.INTERNAL_SERVER_ERROR);
+    };
+    await permissionModel.create({ userId: newUser?._id, permissions: permissions });
+
+    return newUser;
 
   }
   async handleSocialLogin(payload: ISocialLogin): Promise<any> {
@@ -66,7 +113,7 @@ export class AuthRepository implements IAuthRepository {
     }
     await InGameCoinWallet.create({
       userId: newUser?._id,
-      balance: 100
+      balance: 0
     })
     // Store wallet details in the database
     await Wallet.create({
@@ -77,7 +124,7 @@ export class AuthRepository implements IAuthRepository {
       balances: [],
     });
 
-    return { ...newUser, walletAddress: wallet.address };
+    return { ...newUser.toObject(), walletAddress: wallet.address };
 
   }
   async findUserByEmail(email: string): Promise<IUser | null> {
@@ -85,7 +132,7 @@ export class AuthRepository implements IAuthRepository {
     return user;
   }
   async findUserById(id: Schema.Types.ObjectId): Promise<IUser | null> {
-    return await userModel.findById(id);
+    return await userModel.findById(id).select("-refreshToken ");
   }
   async updateUser(id: Schema.Types.ObjectId, payload: IUpdateUser): Promise<IUser> {
     const user = await userModel.findById(id);
@@ -110,7 +157,7 @@ export class AuthRepository implements IAuthRepository {
     const { currency, amount, network } = settings.signup_bonus;
 
     await this.updateWalletBalance(userId, currency, amount, network, 'Received as a registration bonus for signing up', transactionType.reward);
-    await this.updateInGameWalletBalance(userId, settings?.signup_bonus_loot_coin, 'reward', 'Received as a registration bonus for signing up', 'signUp bonus', referredUrl);
+    await this.updateInGameWalletBalance(userId, settings?.signup_bonus_loot_coin, 'reward', 'Received as a registration bonus for signing up', 'SignUp bonus', referredUrl);
 
   };
   async createReferralHistory(newUserId: Schema.Types.ObjectId, referralCode: string): Promise<void> {
@@ -122,18 +169,30 @@ export class AuthRepository implements IAuthRepository {
     const referrerId = referrer._id;
     await referralHistory.create({ referredBy: referrerId, referredTo: newUserId, currency, balance: amount })
   }
-  async rewardReferrer(referralCode: string): Promise<void> {
+  async createReferralHistoryForInGameCoin(newUserId: Schema.Types.ObjectId, referralCode: string): Promise<void> {
     const referrer = await userModel.findOne({ referralCode });
     if (!referrer) throw new CustomError(`Referral code ${referralCode} not found`, HTTP_STATUS.BAD_REQUEST);
+    const settings = await Settings.findOne();
+    if (!settings) throw new Error("Settings not found");
+    const amount = settings.referral_bonus_loot_coin;
+    const referrerId = referrer._id;
+    await inGameCoinReferralHistory.create({ referredBy: referrerId, referredTo: newUserId, balance: amount })
+  }
+  async rewardReferrer(referralCode: string): Promise<boolean> {
+    const referrer = await userModel.findOne({ referralCode });
+    if (!referrer) return false //throw new CustomError(`Referral code ${referralCode} not found`, HTTP_STATUS.BAD_REQUEST);
     const settings = await Settings.findOne();
     if (!settings) throw new Error("Settings not found");
     let referredImg = settings.defaultImgs.find(img => img.name === "referred");
     const referredUrl: string = referredImg ? referredImg?.imgUrl : "";
 
-    const { currency, amount, network } = settings.referral_bonus;
-    const referrerId = referrer._id;
-    await this.updateWalletBalance(referrerId, currency, amount, network, 'Received a reward for referring a friend', transactionType.reward);
-    await this.updateInGameWalletBalance(referrerId, settings?.referral_bonus_loot_coin, 'reward', 'Received a reward for referring a friend', 'referred friend', referredUrl);
+    const { currency, amount, network, referralBonusType } = settings.referral_bonus;
+    if (referralBonusType === enumDatas.referralBonusType.ON_SIGNUP) {
+      const referrerId = referrer._id;
+      await this.updateWalletBalance(referrerId, currency, amount, network, 'Received a reward for referring a friend', transactionType.reward);
+      await this.updateInGameWalletBalance(referrerId, settings?.referral_bonus_loot_coin, 'reward', 'Received a reward for referring a friend', 'Referred friend', referredUrl);
+    }
+    return true
   }
   async updateInGameWalletBalance(userId: Schema.Types.ObjectId, amount: number, type: string, description: string, title: string, imgUrl: string): Promise<void> {
     let wallet = await InGameCoinWallet.findOne({ userId });
@@ -145,7 +204,7 @@ export class AuthRepository implements IAuthRepository {
     if (amount > 0) {
       wallet.balance = Number(wallet.balance) + amount;
       await wallet.save();
-      await InGameCoinTransactions.create({ userId, type, amount: amount, description, title, imgUrl })
+      await InGameCoinTransactions.create({ userId, type: "CREDITED", amount: amount, description, title, imgUrl })
     }
 
 

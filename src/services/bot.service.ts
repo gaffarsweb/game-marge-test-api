@@ -34,7 +34,6 @@ export class BotService {
     }
     async updateBot(botId: Schema.Types.ObjectId, updatedBot: IUpdateBot): Promise<IBot> {
         const bot = await this.botRepository.updateBot(botId, updatedBot);
-        if (!bot) throw new CustomError("Bot not found", HTTP_STATUS.NOT_FOUND);
         return bot;
     }
 }

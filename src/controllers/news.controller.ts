@@ -21,7 +21,6 @@ class NewsController {
     }
 
     getItems = async (req: Request, res: Response): Promise<any> => {
-        logger.info("Get news endpoint hit.");
     
         const { page, limit, sort, search } = req.query;
     
@@ -35,7 +34,6 @@ class NewsController {
             };
     
             const items = await this.newsServices.getNewss(query);
-            logger.info("News fetched successfully");
     
             return sendSuccessResponse(res, HTTP_MESSAGE.OK, items);
         } catch (error: any) {
@@ -48,10 +46,8 @@ class NewsController {
     };
     
     getNewsById=async(req:Request, res:Response):Promise<any>=> {
-        logger.info("Get news by id endpoint hit.");
         const {id}=(req.params as any) as {id:Schema.Types.ObjectId};
         try {
-            console.log('query', req?.query)
             const items = await this.newsServices.getNewsById(id);
            return sendSuccessResponse(res,"ok",items);
         } catch (error:any) {
@@ -59,7 +55,6 @@ class NewsController {
         } 
     }
     deleteItem = async (req: Request, res: Response): Promise<any> => {
-        logger.info("Delete news endpoint hit.");
         try{
             const { id } = (req?.params as any) as { id: Schema.Types.ObjectId };  
                 await this.newsServices.deleteNews(id);
@@ -71,7 +66,6 @@ class NewsController {
     }
 
     updateItem = async (req: Request, res: Response): Promise<any> => {
-        logger.info("Update news endpoint hit.");
         const { id } = (req?.params as any) as { id: Schema.Types.ObjectId };  
         const payload = req?.body;
         try {

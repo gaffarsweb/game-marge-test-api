@@ -7,13 +7,13 @@ import { logger } from "../utils/logger";
 export const distributeTournamentRewards = async () => {
   const now = new Date();
 
-  logger.info("Reading completed tournaments...")
+  // logger.info("Reading completed tournaments...")
   const tournaments = await Tournament.find({
     endTime: { $lte: now },
     isRewarded: { $ne: true },
     isActive: true
   });
-  logger.info(`Found ${tournaments.length} completed tournaments.`);
+  // logger.info(`Found ${tournaments.length} completed tournaments.`);
   for (const tournament of tournaments) {
     const tournamentId = tournament._id as Types.ObjectId;
     const topParticipants = await TournamentParticipation.aggregate([
@@ -23,12 +23,12 @@ export const distributeTournamentRewards = async () => {
         $group: {
           _id: "$userId",
           score: { $first: "$score" }
-        }
+        } 
       },
       { $sort: { score: -1 } },
       { $limit: 25 }
     ]);
-     logger.info(`Top 25 participants: ${topParticipants}`); 
+    //  logger.info(`Top 25 participants: ${topParticipants}`); 
     for (let i = 0; i < topParticipants.length; i++) {
       const userId = topParticipants[i]._id;
       const rewardObj = tournament.rewardDistribution.find(r => r.position === i + 1);
@@ -44,6 +44,6 @@ export const distributeTournamentRewards = async () => {
     tournament.isRewarded = true;
     tournament.status = "completed";
     await tournament.save();
-    logger.info(`✅ Rewards distributed for tournament: ${tournament.name}`);
+    // logger.info(`✅ Rewards distributed for tournament: ${tournament.name}`);
   }
 };

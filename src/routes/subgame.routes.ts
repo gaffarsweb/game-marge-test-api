@@ -9,12 +9,14 @@ import {
 } from "../middlewares/validations/subgame.validations";
 import { validateRequest } from "../middlewares/validateRequest";
 import { gameIdValidaton } from "../middlewares/validations/game.validations";
+import { authorizeRoles } from "../middlewares/authorizeRole";
 
 const router = Router();
 
 router.post(
   "/",
   authenticateRequest,
+  authorizeRoles(['superAdmin','admin']),
   createSubGameValidation,
   validateRequest,
   subgameController.createNewSubgame
@@ -22,7 +24,7 @@ router.post(
 
 router.get(
   "/game/:gameId",
- 
+  authenticateRequest,
   gameIdValidaton,
   validateRequest,
   subgameController.getAllSubgamesByGameId
@@ -45,6 +47,7 @@ router.get(
 router.put(
   "/:subgameId",
   authenticateRequest,
+  authorizeRoles(['superAdmin','admin']),
   updateSubGameValidation,
   validateRequest,
   subgameController.updateSubgame
@@ -53,6 +56,7 @@ router.put(
 router.delete(
   "/:subgameId",
   authenticateRequest,
+  authorizeRoles(['superAdmin','admin']),
   subgameIdValidaton,
   validateRequest,
   subgameController.deleteSubgame

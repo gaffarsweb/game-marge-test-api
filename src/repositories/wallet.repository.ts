@@ -13,6 +13,8 @@ import mongoose from "mongoose";
 import USDRateModel from "../models/USDRate.model";
 import { Types } from 'mongoose';
 import { transactionStatus } from "../utils/enums";
+import { logger } from "../utils/logger";
+import networksModel from "../models/networks.model";
 
 const ERC20_ABI = [
     "function balanceOf(address owner) view returns (uint256)",
@@ -130,6 +132,7 @@ export class walletRepository {
             if (!Types.ObjectId.isValid(userId.toString())) {
                 throw new Error('Invalid user ID format');
             }
+            const networks = await networksModel.find().sort({ _id: 1 });
             const allUsers = await userModel.aggregate([
                 {
                     $match: {
@@ -186,7 +189,7 @@ export class walletRepository {
                 const newRecord: UserDepositRecord = { walletAddress, userId: user?._id, networks: [] };
 
                 if (!walletAddress) {
-                    console.log(`⚠️ No wallet found for user: ${user.userName}`);
+                    logger.info(`⚠️ No wallet found for user: ${user.userName}`);
                     continue;
                 }
 
@@ -194,7 +197,7 @@ export class walletRepository {
                     return { status: false, code: 400, msg: 'No networks available.' };
                 }
 
-                console.log(`🔍 Fetching deposits for user: ${user.userName}, wallet: ${walletAddress}`);
+                logger.info(`🔍 Fetching deposits for user: ${user.userName}, wallet: ${walletAddress}`);
 
                 for (const network of networks) {
 
@@ -221,13 +224,10 @@ export class walletRepository {
                             const latestBlockResponse = await axios.post(`${latestBlockUrl}`, data, {
                                 headers: { "Content-Type": "application/json" }
                             });
-                            console.log(latestBlockResponse)
                             const latestBlockHex = latestBlockResponse.data.result; // hex format
                             const latestBlock = parseInt(latestBlockHex, 16);
                             const startBlock = latestBlock - 50;
                             const endBlock = latestBlock;
-                            console.log(startBlock)
-                            console.log(endBlock)
                             const maxAttempts = 5;
                             const nativeApiURL = `https://api.etherscan.io/v2/api?chainid=${network.chainId}&module=account&action=txlist&address=${walletAddress}&startblock=${startBlock}&endblock=${endBlock}&sort=asc&apikey=${process.env.ETHERSCAN_API_KEY}`;
 
@@ -266,7 +266,7 @@ export class walletRepository {
                                                 };
 
                                                 await Deposit.create(depositePayload)
-                                                console.log("📝 New native deposit found:", walletAddress, network.name, depositePayload);
+                                                logger.info("📝 New native deposit found:", walletAddress, network.name, depositePayload);
                                                 // Optionally save to DB here
                                                 const transaction = await Transaction.create({
                                                     userId,
@@ -286,14 +286,14 @@ export class walletRepository {
                                         data?.result.includes('Max calls per sec rate limit reached')
                                     ) {
                                         attempts++;
-                                        console.warn(`⏳ Rate limit hit. Retrying... (${attempts}/${maxAttempts})`);
+                                        logger.warn(`⏳ Rate limit hit. Retrying... (${attempts}/${maxAttempts})`);
                                         // await sleep(1500);
                                     } else {
-                                        console.warn(`⚠️ Unexpected response:`, walletAddress, network.name, network.chainId, data);
+                                        logger.warn(`⚠️ Unexpected response:`, walletAddress, network.name, network.chainId, data);
                                         success = true;
                                     }
                                 } catch (error: any) {
-                                    console.error(`❌ Error fetching native transactions:`, error.message);
+                                    logger.error(`❌ Error fetching native transactions:`, error.message);
                                     attempts++;
                                     // await sleep(1000);
                                 }
@@ -314,13 +314,10 @@ export class walletRepository {
                                     const latestBlockResponse = await axios.post(`${latestBlockUrl}`, data, {
                                         headers: { "Content-Type": "application/json" }
                                     });
-                                    console.log(latestBlockResponse)
                                     const latestBlockHex = latestBlockResponse.data.result; // hex format
                                     const latestBlock = parseInt(latestBlockHex, 16);
                                     const startBlock = latestBlock - 50;
                                     const endBlock = latestBlock;
-                                    console.log(startBlock)
-                                    console.log(endBlock)
                                     let tokenSuccess = false;
                                     let tokenAttempts = 0;
                                     const maxAttempts = 5;
@@ -358,7 +355,7 @@ export class walletRepository {
                                                         };
 
                                                         await Deposit.create(depositePayload)
-                                                        console.log("📝 New native deposit found:", walletAddress, network.name, depositePayload);
+                                                        logger.info("📝 New native deposit found:", walletAddress, network.name, depositePayload);
                                                         // Optionally save to DB here
                                                         const transaction = await Transaction.create({
                                                             userId,
@@ -378,14 +375,14 @@ export class walletRepository {
                                                 tokenData?.result.includes('Max calls per sec rate limit reached')
                                             ) {
                                                 tokenAttempts++;
-                                                console.warn(`⏳ Token rate limit hit. Retrying... (${tokenAttempts}/${maxAttempts})`);
+                                                logger.warn(`⏳ Token rate limit hit. Retrying... (${tokenAttempts}/${maxAttempts})`);
                                                 // await sleep(1500);
                                             } else {
-                                                console.warn(`⚠️ Token Unexpected response:`, walletAddress, network.name, token.tokenSymbol, tokenData);
+                                                logger.warn(`⚠️ Token Unexpected response:`, walletAddress, network.name, token.tokenSymbol, tokenData);
                                                 tokenSuccess = true;
                                             }
                                         } catch (error: any) {
-                                            console.error(`❌ Error fetching token transactions:`, error.message);
+                                            logger.error(`❌ Error fetching token transactions:`, error.message);
                                             tokenAttempts++;
                                             // await sleep(1000);
                                         }
@@ -400,11 +397,10 @@ export class walletRepository {
 
                 allWalletsDeposites.push(newRecord);
             }
-            console.log('allUsers', allUsers)
 
             // return { status: true, code: 200, data: allUsers };
         } catch (e: any) {
-            console.error("❌ Error while getting deposits:", e);
+            logger.error("❌ Error while getting deposits:", e);
             return {
                 status: false,
                 code: 500,
@@ -416,6 +412,7 @@ export class walletRepository {
     async fetchTokenByNetwork(userId: Schema.Types.ObjectId, selectedNetwork: string): Promise<any> {
         try {
             const matchedTokensByNetwork: { name: string; image: string }[] = [];
+            const networks = await networksModel.find().sort({ _id: 1 });
 
             const matchedNetworks = networks.filter((network) => network.name === selectedNetwork);
 
@@ -441,7 +438,7 @@ export class walletRepository {
                 data: matchedTokensByNetwork,
             };
         } catch (error) {
-            console.error("Error fetching networks by coin/network:", error);
+            logger.error("Error fetching networks by coin/network:", error);
             return {
                 status: false,
                 code: 500,
@@ -452,6 +449,7 @@ export class walletRepository {
 
     async fetchNetworksByCoins(userId: Schema.Types.ObjectId, token: string): Promise<any> {
         try {
+            const networks = await networksModel.find().sort({ _id: 1 });
             // Filter networks where either currency or tokenSymbol matches the given token
             const matchedNetworks = networks.filter((network) => {
                 // Check native currency match
@@ -470,7 +468,7 @@ export class walletRepository {
                 data: networkNames, // e.g. ["BNB Smart Chain Mainnet", "BNB Smart Chain Testnet"]
             };
         } catch (error) {
-            console.error("Error fetching networks by coin/token:", error);
+            logger.error("Error fetching networks by coin/token:", error);
             return {
                 status: false,
                 code: 500,
@@ -481,6 +479,7 @@ export class walletRepository {
 
     async fetchNetworksCoins(userId: Schema.Types.ObjectId): Promise<any> {
         try {
+            const networks = await networksModel.find().sort({ _id: 1 });
             const allSymbols = new Map<string, { name: string; image: string }>();
 
             networks.forEach((network) => {
@@ -512,7 +511,7 @@ export class walletRepository {
                 })),
             };
         } catch (error) {
-            console.error("Error fetching token symbols and currencies:", error);
+            logger.error("Error fetching token symbols and currencies:", error);
             return {
                 status: false,
                 code: 500,
@@ -523,6 +522,7 @@ export class walletRepository {
 
     async fetchNetworks(userId: Schema.Types.ObjectId): Promise<any> {
         try {
+            const networks = await networksModel.find().sort({ _id: 1 });
             const networksWithTokens = networks.map((network) => {
                 // Process tokens with a fallback for missing tokenName
                 const tokens = network.tokens?.map((token) => ({
@@ -561,7 +561,7 @@ export class walletRepository {
                 data: networksWithTokens,
             };
         } catch (error) {
-            console.error("Error fetching networks and tokens:", error);
+            logger.error("Error fetching networks and tokens:", error);
             return {
                 status: false,
                 code: 500,
@@ -584,12 +584,19 @@ export class walletRepository {
 
         const balances: BalanceResult[] = [];
         const transactions = await Transaction.find({ userId: existingUser._id });
+        const networks = await networksModel.find().sort({ _id: 1 });
 
-        for (const network of networks as Network[]) {
+        for (const network of networks as any) {
             if (network.name === "Bitcoin Testnet") continue;
 
             try {
                 const provider = new ethers.JsonRpcProvider(network.rpc);
+                try {
+                    await provider.getNetwork(); // or await provider.getBlockNumber()
+                } catch (rpcErr: any) {
+                    logger.error(`❌ Cannot reach RPC for ${network.name}: ${rpcErr.message}`);
+                    continue; // Skip this network if it's unreachable
+                }
                 const balanceWei = await provider.getBalance(wallet.address);
                 const balanceEth = parseFloat(ethers.formatEther(balanceWei));
 
@@ -597,9 +604,9 @@ export class walletRepository {
 
                 transactions.forEach((txn) => {
                     if (txn.currency === network.currency) {
-                        if (['spending', 'withdraw', 'buy_gamerge_debit', 'deposit'].includes(txn.transactionType)) {
+                        if (['spending', 'withdraw', 'buy_gamerge_debit',].includes(txn.transactionType)) {
                             availableBalance -= txn.transactionAmount;
-                        } else if (['admin_withdraw', 'reward', 'airDropClaim', 'winner_reward', 'buy_gamerge_credit'].includes(txn.transactionType)) {
+                        } else if (['admin_withdraw', 'reward', 'airDropClaim', 'winner_reward', 'buy_gamerge_credit', 'deposit'].includes(txn.transactionType)) {
                             availableBalance += txn.transactionAmount;
                         }
                     }
@@ -617,7 +624,7 @@ export class walletRepository {
                     for (const token of network.tokens) {
                         try {
                             if (!ethers.isAddress(token.tokenAddress)) {
-                                console.error(`Invalid token address for ${token.tokenSymbol}: ${token.tokenAddress}`);
+                                logger.error(`Invalid token address for ${token.tokenSymbol}: ${token.tokenAddress}`);
                                 continue;
                             }
 
@@ -626,7 +633,7 @@ export class walletRepository {
 
                             const code = await provider.getCode(checksummedAddress);
                             if (code === "0x") {
-                                console.error(`No contract at address for ${token.tokenSymbol}: ${checksummedAddress}`);
+                                logger.error(`No contract at address for ${token.tokenSymbol}: ${checksummedAddress}`);
                                 continue;
                             }
 
@@ -636,16 +643,16 @@ export class walletRepository {
                                 const decimals = await tokenContract.decimals();
                                 balance = parseFloat(ethers.formatUnits(rawBalance, decimals));
                             } catch (err: any) {
-                                console.error(`Error fetching ${token.tokenSymbol} balance:`, err.message);
+                                logger.error(`Error fetching ${token.tokenSymbol} balance:`, err.message);
                             }
 
                             let tokenAvailableBalance = 0;
 
                             transactions.forEach((txn) => {
                                 if (txn.currency === token.tokenSymbol) {
-                                    if (['spending', 'withdraw', 'buy_gamerge_debit', 'deposit'].includes(txn.transactionType)) {
+                                    if (['spending', 'withdraw', 'buy_gamerge_debit'].includes(txn.transactionType)) {
                                         tokenAvailableBalance -= txn.transactionAmount;
-                                    } else if (['admin_withdraw', 'reward', 'airDropClaim', 'winner_reward', 'buy_gamerge_credit'].includes(txn.transactionType)) {
+                                    } else if (['admin_withdraw', 'reward', 'airDropClaim', 'winner_reward', 'buy_gamerge_credit', 'deposit'].includes(txn.transactionType)) {
                                         tokenAvailableBalance += txn.transactionAmount;
                                     }
                                 }
@@ -656,26 +663,25 @@ export class walletRepository {
                                 availableBalance: tokenAvailableBalance,
                                 currency: token.tokenSymbol,
                                 network: network.name,
-                                image: network.image
+                                image: token.image
                             });
                         } catch (err: any) {
-                            console.error(`Error processing ${token.tokenSymbol}:`, err.message);
+                            logger.error(`Error processing ${token.tokenSymbol}:`, err.message);
                             balances.push({
                                 balance: 0,
                                 availableBalance: 0,
                                 currency: token.tokenSymbol,
                                 network: network.name,
-                                image: network.image
+                                image: token.image
                             });
                         }
                     }
                 }
             } catch (err: any) {
-                console.error(`Error with ${network.name}:`, err.message);
+                logger.error(`Error with ${network.name}:`, err.message);
             }
         }
 
-        console.log('balancess----', balances)
         let retries = 3;
         while (retries > 0) {
             try {
@@ -716,28 +722,33 @@ export class walletRepository {
         });
         // const uniqueSymbols = [...new Set(balances.map(b => b.currency))];
         // const pricesInUSD = await fetchTokenPrices(uniqueSymbols);
-        // console.log('price in usd', pricesInUSD)
         const pricesInUSD = await USDRateModel.findOne()
         let totalUSD = 0;
         balances.forEach(({ availableBalance, currency }) => {
             const price = pricesInUSD?.rates[currency] || 0;
             totalUSD += availableBalance * price;
         });
-        return {
-            status: true,
-            code: 200,
-            data: {
-                userId: existingUser._id,
-                walletAddress: wallet!.address,
-                balances: Object.values(groupedBalances),
-                totalUSD: Number(totalUSD.toFixed(2))
-            },
-        };
+        const updated = await userModel.findByIdAndUpdate(
+            userId,
+            { totalUSD: Number(totalUSD.toFixed(2)) },
+        );
+        if (updated) {
+            return {
+                status: true,
+                code: 200,
+                data: {
+                    userId: existingUser._id,
+                    walletAddress: wallet!.address,
+                    balances: Object.values(groupedBalances),
+                    totalUSD: Number(totalUSD.toFixed(2))
+                },
+            };
+        }
     }
 
     async fetchWalletBalanceById(userId: Schema.Types.ObjectId): Promise<any> {
         try {
-
+            const networks = await networksModel.find().sort({ _id: 1 });
             const wallet = await Wallet.findOne({ userId }).lean();
 
             if (!wallet) {
@@ -767,7 +778,7 @@ export class walletRepository {
                 data: groupedBalances,
             };
         } catch (error) {
-            console.error('Error fetching wallet:', error);
+            logger.error('Error fetching wallet:', error);
             return {
                 status: false,
                 code: 500,
@@ -778,12 +789,12 @@ export class walletRepository {
 
     async updateWalletBalance(): Promise<any> {
         try {
-            console.log(`[${new Date().toISOString()}] Starting wallet balance update job...`);
+            logger.info(`[${new Date().toISOString()}] Starting wallet balance update job...`);
 
             const users = await userModel.find({ role: "user" }).lean();
 
             if (users.length === 0) {
-                console.warn(`[${new Date().toISOString()}] No users with role "user" found.`);
+                logger.warn(`[${new Date().toISOString()}] No users with role "user" found.`);
                 return {
                     status: false,
                     code: 404,
@@ -796,35 +807,35 @@ export class walletRepository {
 
             for (const [index, user] of users.entries()) {
                 try {
-                    console.log(`[${index + 1}/${users.length}] Updating balance for user: ${user.email || user._id}`);
+                    // logger.info(`[${index + 1}/${users.length}] Updating balance for user: ${user.email || user._id}`);
 
                     const walletData = await this.fetchWalletBalances(user._id);
                     const totalUSDBalance = walletData?.data?.totalUSD;
 
                     if (typeof totalUSDBalance === 'number') {
-                        const updated = await userModel.findByIdAndUpdate(
-                            user._id,
-                            { totalUSD: totalUSDBalance },
-                        );
+                        // const updated = await userModel.findByIdAndUpdate(
+                        //     user._id,
+                        //     { totalUSD: totalUSDBalance },
+                        // );
 
-                        if (updated) {
-                            console.log(`Updated totalUSD for ${user.email || user._id}: $${totalUSDBalance}`);
-                            updatedCount++;
-                        } else {
-                            console.warn(`No update applied for user ${user.email || user._id}`);
-                        }
+                        // if (updated) {
+                        //     // logger.info(`Updated totalUSD for ${user.email || user._id}: $${totalUSDBalance}`);
+                        //     updatedCount++;
+                        // } else {
+                        //     logger.warn(`No update applied for user ${user.email || user._id}`);
+                        // }
                     } else {
                         failedUsers.push(user.email?.toString() || user._id.toString());
-                        console.warn(`Invalid totalUSD value for ${user.email || user._id}:`, totalUSDBalance);
+                        logger.warn(`Invalid totalUSD value for ${user.email || user._id}:`, totalUSDBalance);
                     }
 
                 } catch (err: any) {
-                    console.error(`Failed to update balance for user ${user.email || user._id}:`, err.message);
+                    logger.error(`Failed to update balance for user ${user.email || user._id}:`, err.message);
                     failedUsers.push(user.email?.toString() || user._id.toString());
                 }
             }
 
-            console.log(`[${new Date().toISOString()}] Wallet balance update job completed. ${updatedCount}/${users.length} updated.`);
+            logger.info(`[${new Date().toISOString()}] Wallet balance update job completed. ${updatedCount}/${users.length} updated.`);
 
             return {
                 status: true,
@@ -837,7 +848,7 @@ export class walletRepository {
             };
 
         } catch (error: any) {
-            console.error(`[${new Date().toISOString()}]  Error in wallet update job:`, error.message);
+            logger.error(`[${new Date().toISOString()}]  Error in wallet update job:`, error.message);
             return {
                 status: false,
                 code: 500,

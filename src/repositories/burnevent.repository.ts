@@ -3,7 +3,6 @@ import burnCoinHistoryModel from "../models/burnCoinHistory.model";
 import burningCoinsModel from "../models/burningCoins.model";
 import burningEventModel, { IBurningEvent } from "../models/burningEvent.model";
 import gamergeCoinConfigurationModel from "../models/gamergeCoinConfiguration.model";
-import { IUser } from "../models/user.model";
 
 export class BurnEventRepository implements IBurnEventRepository {
   async getBurnEvents(): Promise<any> {
@@ -22,6 +21,7 @@ export class BurnEventRepository implements IBurnEventRepository {
     const data = {
       id: event._id,
       eventDate: event.eventDate,
+      targetBurnAmount: event.targetBurnAmount,
       totalSupply: config.totalSupply,
       totalBurned: burnCoin.totalBurned || 0,
       availableSupply,
@@ -30,6 +30,10 @@ export class BurnEventRepository implements IBurnEventRepository {
     return data;
   }
   async triggerBurnEvent(userId: string, eventId: string): Promise<void> {
+    const burnevent = await burningEventModel.findById(eventId);
+    if (!burnevent) {
+      throw new Error("Burning event not found");
+    }
     const burnCoin = await burningCoinsModel.findOne({});
     if (!burnCoin) {
       throw new Error("Burning coin not found");
@@ -38,13 +42,20 @@ export class BurnEventRepository implements IBurnEventRepository {
     if (amountToBurn <= 0) {
       throw new Error("No amount to burn");
     }
+    const config = await gamergeCoinConfigurationModel.findOne({});
+    const totalSupply=config?.totalSupply || 0;
+    const availableToken =( config?.totalSupply || 0) - (burnCoin.totalBurned || 0);
+
     burnCoin.totalBurned += amountToBurn;
     burnCoin.totalBurningAmount = 0;
     await burnCoin.save();
     await burnCoinHistoryModel.create({
       userId,
       burnEventId: eventId,
-      amount: amountToBurn,
+      totalSupply,
+      burnTarget: burnevent.targetBurnAmount,
+      availableToken,
+      totalTokenBurned: amountToBurn,
       burnDate: new Date(),
       remarks: "Burning event triggered",
     });
@@ -54,8 +65,6 @@ export class BurnEventRepository implements IBurnEventRepository {
   async getBurnCoinHistory(): Promise<any> {
     const burnCoinHistory = await burnCoinHistoryModel
       .find({})
-      .populate<{ userId: IUser }>("userId", "name email avatarUrl")
-      .populate<{ burnEventId: IBurningEvent }>("burnEventId", "eventDate")
       .sort({ burnDate: -1 });
     if (!burnCoinHistory) {
       throw new Error("Burning coin history not found");
@@ -63,17 +72,16 @@ export class BurnEventRepository implements IBurnEventRepository {
     const burnCoinHistoryData = burnCoinHistory.map((history) => {
       return {
         id: history._id,
-        userId: history.userId._id,
-        userName: history.userId.name,
-        userEmail: history.userId.email,
-        userAvatarUrl: history.userId.avatarUrl,
-        burnEventId: history.burnEventId._id,
-        eventDate: history.burnEventId.eventDate,
-        amount: history.amount,
+        userId: history.userId,
+        burnEventId: history.burnEventId,
+        totalSupply: history.totalSupply,
+        burnTarget: history.burnTarget,
+        availableToken: history.availableToken,
+        totalTokenBurned: history.totalTokenBurned,
         burnDate: history.burnDate,
         remarks: history.remarks,
       };
-    });
+    })
     return burnCoinHistoryData;
   }
   async getBurnEventById(id: string): Promise<IBurningEvent> {

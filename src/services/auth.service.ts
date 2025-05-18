@@ -36,6 +36,35 @@ export class AuthService {
     logger.info('OTP sent for signup email verification');
 
   }
+  async addAdmin(payload: IRegister): Promise<any> {
+    if (payload.password !== payload.confirmPassword) {
+      throw new CustomError("Passwords do not match", HTTP_STATUS.BAD_REQUEST);
+    }
+    const isUserAlreadyExist = await this.authRepository.findUserByEmail(
+      payload.email,
+    );
+    if (isUserAlreadyExist && isUserAlreadyExist.isEmailVerified) {
+      throw new CustomError("Email already in use", HTTP_STATUS.BAD_REQUEST);
+    }
+    const hashPassword = await utility.getHashPassword(payload.password);
+    const user = await this.authRepository.addAdmin({ ...payload, password: hashPassword, provider: "email" }) || {};
+    if (!user) {
+      return false;
+    }
+
+    const loginUrl = "http://admin-gamerge.testsdlc.in/login";
+    const subject = "You have been added as an admin at GameMarge";
+    const text = `You have been added as an admin. Please log in at ${loginUrl} with your email: ${payload.email} and password: ${payload.password}`;
+
+    const emailSended = await utility.sendEmail({
+      email: payload.email,
+      subject,
+      text,
+    });
+    if (emailSended) return user;
+    return false;
+
+  }
   async verifyEmailForResetPassword(email: string): Promise<any> {
     const user = await this.authRepository.findUserWithFilters({ email, isEmailVerified: true });
     if (!user) {
@@ -47,9 +76,19 @@ export class AuthService {
     await utility.sendEmail({ email, subject: "Reset Password OTP", text: `Your OTP is ${otp}` });
 
   }
+  async verifyEmailForResetPasswordAdmin(email: string): Promise<any> {
+    const user = await this.authRepository.findUserWithFilters({ email, isEmailVerified: true, });
+    if (!user || user?.role != "admin" && user?.role != "superAdmin") {
+      throw new CustomError("Admin not found", HTTP_STATUS.NOT_FOUND);
+    }
+    const otp = utility.generateOTP();
+    const otpExpiration = new Date(Date.now() + 5 * 60 * 1000);
+    await this.authRepository.updateUser(user._id as Schema.Types.ObjectId, { otp, otpExpiredAt: otpExpiration });
+    await utility.sendEmail({ email, subject: "Reset Password OTP", text: `Your OTP is ${otp}` });
+
+  }
   async verifyOtpForResetPassword(email: string, otp: string): Promise<IUser> {
     const user = await this.authRepository.findUserWithFilters({ email, isEmailVerified: true });
-    console.log(user)
     if (!user) {
       throw new CustomError("User not found", HTTP_STATUS.NOT_FOUND);
     }
@@ -77,7 +116,7 @@ export class AuthService {
     return await this.authRepository.updateUser(user._id as Schema.Types.ObjectId, { password: hashPassword });
   }
   async logInUser(payload: ILogin): Promise<IUser> {
-    const user = await this.authRepository.findUserWithFilters({ email: payload.email, isActive: true, isEmailVerified: true });
+    const user = await this.authRepository.findUserWithFilters({ email: payload.email, isActive: true, isEmailVerified: true, role: "user" });
     if (
       !user ||
       !(await utility.validatePassword(payload.password, user.password!))
@@ -87,15 +126,20 @@ export class AuthService {
     return user;
   }
   async logInAdmin(payload: ILogin): Promise<IUser> {
-    const user = await this.authRepository.findUserWithFilters({ email: payload.email, isActive: true, isEmailVerified: true });
+    const user = await this.authRepository.findUserWithFilters({ email: payload.email, isActive: true });
     if (
       !user ||
-      !(await utility.validatePassword(payload.password, user.password!)) ||
-      user.role !== 'admin'
+      !(await utility.validatePassword(payload.password, (user?.password || ""))) ||
+      user.role !== 'admin' && user.role !== 'superAdmin'
 
     ) {
       throw new CustomError("Invalid credentials", HTTP_STATUS.BAD_REQUEST);
     }
+    const otp = utility.generateOTP();
+    const otpExpiration = new Date(Date.now() + 5 * 60 * 1000);
+    await this.authRepository.updateUser(user._id as Schema.Types.ObjectId, { otp, otpExpiredAt: otpExpiration });
+    await utility.sendEmail({ email: payload.email, subject: "Verify your email", text: `Your OTP is ${otp}` });
+    logger.info('OTP sent for Admin 2 factor verification');
     return user;
   }
   async verifyEmail(email: string, otp: string): Promise<IUser> {
@@ -103,23 +147,38 @@ export class AuthService {
     if (!user) {
       throw new CustomError("User not found", HTTP_STATUS.NOT_FOUND);
     }
-    if (user.isEmailVerified) {
-      throw new CustomError("Email already verified", HTTP_STATUS.BAD_REQUEST);
-    }
+    // if (user.isEmailVerified) {
+    //   throw new CustomError("Email already verified", HTTP_STATUS.BAD_REQUEST);
+    // }
     if (!user.otp || user.otp !== otp || (user?.otpExpiredAt && user.otpExpiredAt < new Date())) {
       throw new CustomError("Invalid or expired OTP", HTTP_STATUS.BAD_REQUEST);
     }
     const payload = { isEmailVerified: true, otp: null, otpExpiredAt: null };
     const newUser = await this.authRepository.updateUser(user._id as Schema.Types.ObjectId, payload);
     if (newUser && newUser.referredBy) {
-      await this.authRepository.rewardReferrer(newUser.referredBy);
-      await this.authRepository.createReferralHistory(newUser?._id, newUser.referredBy)
+      const isRewarded=await this.authRepository.rewardReferrer(newUser.referredBy);
+      if(isRewarded){
+        await this.authRepository.createReferralHistory(newUser?._id, newUser.referredBy);
+        await this.authRepository.createReferralHistoryForInGameCoin(newUser?._id, newUser.referredBy);
+      }
     }
     await this.authRepository.rewardSignupBonus(newUser._id);
     return newUser;
   }
+  async verifyEmailForAdmin(email: string, otp: string): Promise<IUser> {
+    const user = await this.authRepository.findUserByEmail(email);
+    if (!user) {
+      throw new CustomError("User not found", HTTP_STATUS.NOT_FOUND);
+    }
+    if (!user.otp || user.otp !== otp || (user?.otpExpiredAt && user.otpExpiredAt < new Date())) {
+      throw new CustomError("Invalid or expired OTP", HTTP_STATUS.BAD_REQUEST);
+    }
+    const payload = { isEmailVerified: true, otp: null, otpExpiredAt: null };
+    const newUser = await this.authRepository.updateUser(user._id as Schema.Types.ObjectId, payload);
+    return newUser;
+  }
   async editUser(id: Schema.Types.ObjectId, payload: IUpdateUser): Promise<IUser> {
-    if (!payload.name && !payload.country) {
+    if (Object.keys(payload).length===0) {
       throw new CustomError("Please provide at least one field to update", HTTP_STATUS.BAD_REQUEST);
     }
     return await this.authRepository.updateUser(id, payload);
@@ -137,13 +196,13 @@ export class AuthService {
   async handleSocialLogin(payload: ISocialLogin): Promise<IUser> {
     const user = await this.authRepository.findUserByEmail(payload.email);
     if (user) return user;
-    return await this.authRepository.handleSocialLogin(payload);
+    const newUser = await this.authRepository.handleSocialLogin(payload);
+    await this.authRepository.rewardSignupBonus(newUser._id);
+    return newUser;
   }
 
-  async deleteUser(id: Schema.Types.ObjectId): Promise<IUser> {
-    return await this.authRepository.deleteUserById(id);
-  }
-  async updateWalletBalance(userId: Schema.Types.ObjectId, currency: string, network: string, amount: number, des : string, transactionType:string): Promise<void> {
+
+  async updateWalletBalance(userId: Schema.Types.ObjectId, currency: string, network: string, amount: number, des: string, transactionType: string): Promise<void> {
     await this.authRepository.updateWalletBalance(userId, currency, amount, network, des, transactionType);
   }
   async updatePassword(

@@ -4,7 +4,7 @@ import { logger } from "../utils/logger";
 import { CustomError } from "../utils/custom-error";
 import { sendSuccessResponse, sendErrorResponse } from "../utils/apiResponse";
 import { HTTP_MESSAGE, HTTP_STATUS } from "../utils/httpStatus";
-import { Schema } from "mongoose";
+import mongoose, { Schema } from "mongoose";
 import { IUpdateGame } from '../interfaces/game.interface';
 import { IPagination } from "../interfaces/news.interface";
 
@@ -16,7 +16,6 @@ class GamesController {
 
     // Get all games
     getAllGames = async (req: Request, res: Response): Promise<any> => {
-        logger.info("Get all games endpoint hit.");
         try {
             const { page = 1, limit = 10, sort = 1, search = "" } = req.query as unknown as IPagination;
             const games = await this.gamesService.getAllGames({ page, limit, sort, search });
@@ -29,13 +28,25 @@ class GamesController {
             return sendErrorResponse(res);
         }
     }
+
+    getAllGamesWithoutPagination = async (req: Request, res: Response): Promise<any> => {
+        logger.info("Get all games endpoint hit.");
+        try {
+            const games = await this.gamesService.getAllGamesWithoutPagination();
+            return sendSuccessResponse(res, "Ok", games);
+        } catch (error: any) {
+            logger.error("Get All Games failed");
+            if (error instanceof CustomError) {
+                return sendErrorResponse(res, error, error.message, error.statusCode);
+            }
+            return sendErrorResponse(res);
+        }
+    }
     // GET a game by id
     getGame = async (req: Request, res: Response): Promise<any> => {
-        logger.info("Get game by id endpoint hit.");
         const { gameId } = (req.params as any) as { gameId: Schema.Types.ObjectId };
         try {
             const game = await this.gamesService.getGame(gameId);
-            logger.info("Game retrived by Id successfully.");
             return sendSuccessResponse(res, "Ok", game);
 
         } catch (error: any) {
@@ -47,12 +58,33 @@ class GamesController {
         }
     }
 
+    getGameGraphData = async (req: Request, res: Response): Promise<any> => {
+        logger.info("Get game by id endpoint hit.");
+
+        try {
+            const { gameId } = (req.params as any) as { gameId: mongoose.Types.ObjectId };
+            const { startDate, endDate } = req.query as { startDate?: string; endDate?: string };
+            const game = await this.gamesService.getGameGraphData(gameId, { startDate, endDate });
+
+            logger.info("Game retrieved by Id successfully.");
+            return sendSuccessResponse(res, "Ok", game);
+
+        } catch (error: any) {
+            logger.error("Get game by id failed");
+
+            if (error instanceof CustomError) {
+                return sendErrorResponse(res, error, error.message, error.statusCode);
+            }
+
+            return sendErrorResponse(res);
+        }
+    }
+
+
     // Add a game
     addGame = async (req: Request, res: Response): Promise<any> => {
-        logger.info("Create game endpoint hit");
         try {
             const game = await this.gamesService.create(req.body);
-            logger.info("Game created successfully.");
             return sendSuccessResponse(res, HTTP_MESSAGE.CREATED, game, HTTP_STATUS.CREATED);
         } catch (error: any) {
             logger.error("Create Game failed");
@@ -65,12 +97,10 @@ class GamesController {
 
     // Update a game
     updateGame = async (req: Request, res: Response): Promise<any> => {
-        logger.info("Update Game Endpoint hit");
         const { gameId } = (req.params as any) as { gameId: Schema.Types.ObjectId };
         const payload = req.body as IUpdateGame;
         try {
             const game = await this.gamesService.update(gameId, payload);
-            logger.info("Game updated successfully.");
             return sendSuccessResponse(res, "Ok", game);
         } catch (error: any) {
             logger.error(`Update game failed with error: ${error.message}`);
@@ -83,11 +113,9 @@ class GamesController {
 
     // Delete a game
     deleteGame = async (req: Request, res: Response): Promise<any> => {
-        logger.info("Delete Game Endpoint hit");
         const { gameId } = (req.params as any) as { gameId: Schema.Types.ObjectId };
         try {
             await this.gamesService.delete(gameId);
-            logger.info(`Game deleted successfully,game id: ${gameId}`);
             return sendSuccessResponse(res);
         } catch (error: any) {
             logger.error("Failed to delete the game.");
@@ -100,26 +128,36 @@ class GamesController {
 
 
     getGameHistories = async (req: Request, res: Response): Promise<any> => {
-        logger.info("Get Game Histories endpoint hit.");  // TODO: add pagination and filtering options
-        const { page, limit, sort, search , filter} = req.query;
+        const { page, limit, sort, search, filter, isExport } = req.query;
         try {
             const query: IPagination = {
                 page: page ? Number(page) || 1 : 1,
                 limit: limit ? Number(limit) || 10 : 10,
                 sort: sort && (Number(sort) === 1 || Number(sort) === -1) ? Number(sort) as 1 | -1 : -1,
                 search: search ? String(search) : '',
-                filter: filter ? String(filter) : ''
+                filter: filter ? String(filter) : '',
+                isExport: isExport === 'true'
             };
-            const gameHistories = await this.gamesService.getGameHistory(query);
+
+            let gameHistories;
+            if (query?.isExport) {
+                gameHistories = await this.gamesService.getGameHistory(query, res);
+                return; 
+            } else {
+                gameHistories = await this.gamesService.getGameHistory(query);
+            }
+
             return sendSuccessResponse(res, "Ok", gameHistories);
         } catch (error: any) {
             logger.error("Failed to get game histories.");
             if (error instanceof CustomError) {
                 return sendErrorResponse(res, error, error.message, error.statusCode);
             }
-            return sendErrorResponse(res, error, error.message)
+            return sendErrorResponse(res, error, error.message);
         }
     }
+
+
 }
 
 export default new GamesController();

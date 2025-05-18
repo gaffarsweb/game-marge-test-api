@@ -30,4 +30,5 @@ export interface IPagination {
     sort?: 1 | -1;
     search?:string,
     filter?: string,
+    isExport?: true | false,
 }

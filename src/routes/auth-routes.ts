@@ -1,11 +1,14 @@
 import { Router } from "express";
 import authController from "../controllers/auth.controller";
 import {
-  loginValidation,
+
   registerOtpValidation,
   registerValidation,
   updatePasswordValidation,
   updateUserValidation,
+  validateAddAdmin,
+  validateLogin,
+  validateResetPassword,
   validateSocialLogin,
 } from "../middlewares/validations/auth.validations";
 import { authenticateRequest } from "../middlewares/authMiddleware";
@@ -22,21 +25,34 @@ router.post(
   authController.signupRequest
 );
 router.post(
+  "/add-admin",
+  authenticateRequest,
+  validateAddAdmin,
+  validateRequest,
+  authController.addAdmin
+);
+router.post(
   "/verify-signup-otp",
    registerOtpValidation,
    validateRequest,
   authController.verifyOtpAndSignup
 );
+router.post(
+  "/verify-admin-otp",
+   registerOtpValidation,
+   validateRequest,
+  authController.verifyOtpForAdmin
+);
 
 router.post(
   "/login",
-  loginValidation,
+  validateLogin,
   validateRequest,
   authController.handleUserLogin
 );
 router.post(
   "/admin/login",
-  loginValidation,
+  validateLogin,
   validateRequest,
   authController.handleAdminLogin
 );
@@ -59,8 +75,11 @@ router.put(
 );
 router.get("/profile", authenticateRequest, authController.getProfile);
 router.post("/forget-password-request",authController.forgotPasswordRequest);
+router.post("/forget-password-request-admin",authController.forgotPasswordRequestadmin);
 router.post("/verify-reset-otp",authController.verifyOtpForReset);
-router.post("/reset-password",authController.resetPassword);
+router.post("/verify-reset-otp-admin",authController.verifyOtpForReset);
+router.post("/reset-password",validateResetPassword,validateRequest,authController.resetPassword);
+router.post("/reset-password-admin",validateResetPassword,validateRequest,authController.resetPassword);
 router.post("/refresh-token",authController.refreshToken);
 
 export default router;

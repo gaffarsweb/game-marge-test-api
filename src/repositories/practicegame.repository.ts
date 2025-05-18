@@ -19,7 +19,10 @@ export class practiceGameRepository implements IpracticeGameInterface {
 
         const { page = 1, limit = 10, sort = -1, search } = query;
         const skip = (page - 1) * limit;
-        let queryPaload: any = { gameId };
+        let queryPaload: any = { };
+        if (gameId) {
+            queryPaload.gameId = gameId;
+        }
 
         if (search) {
             queryPaload.$or = [
@@ -77,7 +80,13 @@ export class practiceGameRepository implements IpracticeGameInterface {
         inGameWalletDetails.balance = (balance - entry);
         await inGameWalletDetails.save();
         await userDetails.save();
-        await InGameCoinTransactions.create({ title: practiceGameDetails?.name, imgUrl: practiceGameDetails?.imgUrl, userId, type: "game_entry_fee", amount: entry, description: `Paid ${entry} coins to play the practice game: ${practiceGameDetails?.name}` })
+        await InGameCoinTransactions.create({
+             title: practiceGameDetails?.name,
+             imgUrl: practiceGameDetails?.imgUrl, userId, 
+             type:"DEBITED", 
+             amount: entry, 
+             description: `Paid ${entry} coins to play the practice game: ${practiceGameDetails?.name}`
+             })
 
         return;
 
@@ -103,7 +112,14 @@ export class practiceGameRepository implements IpracticeGameInterface {
         inGameWalletDetails.balance = Number(balance) + Number(winingPoints);
         await userDetails.save();
         await inGameWalletDetails.save();
-        await InGameCoinTransactions.create({ title: practiceGameDetails?.name, imgUrl: practiceGameDetails?.imgUrl, userId, type: "winner_reward", amount: winingPoints, description: `Received ${winingPoints} coins as a reward for winning the practice game: ${practiceGameDetails?.name}` })
+        await InGameCoinTransactions.create({
+             title: practiceGameDetails?.name,
+             imgUrl: practiceGameDetails?.imgUrl, 
+             userId, 
+             type: "CREDITED", 
+             amount: winingPoints, 
+             description: `Received ${winingPoints} coins as a reward for winning the practice game: ${practiceGameDetails?.name}` 
+            })
         await PracticeGameResults.create({ score: winingPoints, userId, gameId: practiceGameDetails?.gameId, amount: winingPoints })
         return;
 

@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 // Define the TypeScript interface for the document
-interface IDeposit extends Document {
+export interface IDeposit extends Document {
   userId: mongoose.Types.ObjectId;
   timeStamp: number;
   blockNumber: number;

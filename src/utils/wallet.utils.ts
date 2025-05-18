@@ -2,6 +2,7 @@ import Wallet from "../models/wallet.model";
 import Transaction from "../models/transaction.model";
 import { Types } from "mongoose";
 import { transactionStatus, transactionType } from "./enums";
+import { logger } from "./logger";
 
 export const creditRewardToUser = async (
   userId: Types.ObjectId,
@@ -15,7 +16,7 @@ export const creditRewardToUser = async (
     { userId, "balances.currency": currency, "balances.network":network },
     { $inc: { "balances.$.availableBalance": amount } }
   );
- console.log("Balance updated in wallet for userId:",userId,"currency:",currency,"amount:",amount);
+ logger.info("Balance updated in wallet for userId:",userId,"currency:",currency,"amount:",amount);
   // Log transaction
   await Transaction.create({
     userId,

@@ -28,7 +28,7 @@ export class SpinService{
     async getSpinCombination(combinationId:Schema.Types.ObjectId):Promise<ISpinCombination>{
         return this.spinRepository.getSpinCombination(combinationId);
     }
-    async getSpinHistory(query: { page?:string, limit?:string, sort?: string, search?: string, filter?: string }):Promise<any>{
+    async getSpinHistory(query: { page?:string, limit?:string, sort?: string, search?: string, filter?: string, startDate?: string, endDate?: string }):Promise<any>{
         return this.spinRepository.getSpinHistory(query);
     }
     async deleteSpinCombination(combinationId:Schema.Types.ObjectId):Promise<ISpinCombination>{

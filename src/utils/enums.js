@@ -41,6 +41,11 @@ const currency = {
 	MATIC: "MATIC"
 };
 
+const referralBonusType = {
+	ON_SIGNUP : 'on_signup',
+	ON_FIRST_TOURNAMENT : 'on_first_tournament'
+  }
+
 const roleRights = new Map();
 roleRights.set(roles.superAdmin, [roleAccess.user, roleAccess?.backofficeUser, roleAccess.admin, roleAccess?.superAdmin]);
 roleRights.set(roles.admin, [roleAccess.user, roleAccess?.backofficeUser, roleAccess.admin]);
@@ -68,5 +73,6 @@ module.exports = {
 	contentType,
 	transactionStatus,
 	transactionType,
-	currency
+	currency,
+	referralBonusType
 };

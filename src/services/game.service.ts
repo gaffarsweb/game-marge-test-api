@@ -4,8 +4,8 @@ import { IGame } from "../models/game.model";
 import { GamesRepository } from "../repositories/game.repository";
 import { CustomError } from "../utils/custom-error";
 import { HTTP_STATUS } from "../utils/httpStatus";
-import { Schema } from 'mongoose';
-
+import mongoose, { Schema } from 'mongoose';
+import { Request, Response } from "express";
 
 export class GamesService {
     constructor(private gamesRepository: GamesRepository = new GamesRepository()) { }
@@ -16,8 +16,19 @@ export class GamesService {
         return games;
 
     }
+    async getAllGamesWithoutPagination() {
+        const games = await this.gamesRepository.getAllGamesWithoutPagination();
+        if (games.data.length === 0) throw new CustomError("No games found", HTTP_STATUS.NOT_FOUND);
+        return games;
+
+    }
     async getGame(gameId: Schema.Types.ObjectId) {
         const game = await this.gamesRepository.getGameById(gameId);
+        if (!game) throw new CustomError("Game not found", HTTP_STATUS.NOT_FOUND);
+        return game;
+    }
+    async getGameGraphData(gameId: mongoose.Types.ObjectId, query: { startDate?: string; endDate?: string }) {
+        const game = await this.gamesRepository.getGameGraphData(gameId, query);
         if (!game) throw new CustomError("Game not found", HTTP_STATUS.NOT_FOUND);
         return game;
     }
@@ -35,9 +46,12 @@ export class GamesService {
     async delete(gameId: Schema.Types.ObjectId) {
         return await this.gamesRepository.deleteGame(gameId);
     }
-    async getGameHistory(query:IPagination): Promise<any> {
-        const histories= await this.gamesRepository.getGameHistory(query);
-        if(histories.data.length===0)throw new CustomError("No games history found",HTTP_STATUS.NOT_FOUND);
+    async getGameHistory(query: IPagination, res?: Response): Promise<any> {
+        const histories = await this.gamesRepository.getGameHistory(query, res);
+        if (histories.data.length === 0) {
+            throw new CustomError("No games history found", HTTP_STATUS.NOT_FOUND);
+        }
         return histories;
     }
+
 }

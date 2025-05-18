@@ -4,7 +4,7 @@ import mongoose, { Schema, Document } from "mongoose";
 interface IWallet extends Document {
     referredBy: mongoose.Types.ObjectId;
     referredTo: mongoose.Types.ObjectId;
-    balance: Number;
+    balance: number;
     currency: string;
     createdAt: Date;
     updatedAt: Date;

@@ -2,14 +2,14 @@ import mongoose, { Document, Schema } from "mongoose";
 
 export interface ISubGame extends Document {
     gameId: Schema.Types.ObjectId;
-    price: number;
+    price: string;
     entry: number;
     imgUrl?: string,
     name?: string,
 }
 const practiceGameSchema = new mongoose.Schema<ISubGame>({
     gameId: { type: Schema.Types.ObjectId, required: true, ref: "Game" },
-    price: { type: Number, required: true },
+    price: { type: String, required: true },
     entry: { type: Number, required: true },
     imgUrl: { type: String, required: false },
     name:{type:String,default:""}

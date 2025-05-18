@@ -16,6 +16,8 @@ export interface IAirdropCampaign extends Document {
   endAt: Date;
   isActive: boolean;
   tasks: IAirdropTask[];
+  type: 'TASK_BASED' | 'ENTRY_BASED';
+  entryCost?: number;  
   createdAt: Date;
   updatedAt: Date;
 }
@@ -39,6 +41,8 @@ const AirdropCampaignSchema = new Schema<IAirdropCampaign>(
     logoText: { type: String, required: true },
     endAt: { type: Date, required: true },
     isActive: { type: Boolean, default: true },
+    type:{type:String,required:true,enum:['TASK_BASED','ENTRY_BASED']},
+    entryCost:{type:Number,default:0},
     tasks: { type: [AirdropTaskSchema], default: [] },
   },
   { timestamps: true }

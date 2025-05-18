@@ -6,6 +6,9 @@ import { SpinHistory } from "../models/spinHistory.model";
 import User from "../models/user.model";
 import Wallet from "../models/wallet.model";
 import Settings from "../models/setting.model";
+import { logger } from "../utils/logger";
+import Transaction from "../models/transaction.model";
+import { transactionStatus, transactionType } from "../utils/enums";
 
 export class SpinRepository {
 
@@ -26,9 +29,10 @@ export class SpinRepository {
 		await userWallet.save();
 		await InGameCoinTransactions.create({
 			userId: userId,
-			type: "spin_fee",
+			type: "DEBITED",
 			amount: spinFee,
 			description: "Spin fee",
+			title:"Spin fee"
 		})
 		return remainingSpins;
 	}
@@ -54,24 +58,27 @@ export class SpinRepository {
 				});
 			}
 			await wallet.save();
-			await SpinHistory.create({
-				userId,
-				combination,
-				rewardType,
-				rewardAmount,
-				spinFee,
+			await Transaction.create({
+				userId: userId,
+				transactionAmount:rewardAmount,
+				transactionStatus:transactionStatus.SUCCESS,
+				transactionType:transactionType.reward,
+				currency: rewardType,
+				network: network,
+				remarks: `You have recieved this amount via spin reward`,
+				
 			})
 		} else {
 			const userWallet = await InGameCoinWallet.findOne({ userId });
 			if (!userWallet) throw new Error("Wallet not found");
 			userWallet.balance += rewardAmount;
 			await userWallet.save();
-			await SpinHistory.create({
-				userId,
-				combination,
-				rewardType,
-				rewardAmount,
-				spinFee,
+			await InGameCoinTransactions.create({
+				userId: userId,
+				type: "CREDITED",
+				amount: rewardAmount,
+				description: `You have recieved ${rewardAmount} ${rewardType}`,
+				title: "Spin reward"
 			})
 
 		}
@@ -96,7 +103,7 @@ export class SpinRepository {
 		return combination;
 	}
 
-	async getSpinHistory(query: { page?: string, limit?: string, sort?: string, search?: string, filter?: string }): Promise<any> {
+	async getSpinHistory(query: { page?: string, limit?: string, sort?: string, search?: string, filter?: string, startDate?: string, endDate?: string  }): Promise<any> {
 		try {
 			const page = query.page ? parseInt(query.page, 10) : 1;
 			const limit = query.limit ? parseInt(query.limit, 10) : 10;
@@ -110,7 +117,17 @@ export class SpinRepository {
 					]
 				}
 				: {};
+				if (query.startDate && query.endDate) {
+					const startDate = new Date(query.startDate);
+					const endDate = new Date(query.endDate);
+					// Include the entire end date by setting the time to the end of the day
+					endDate.setHours(23, 59, 59, 999);
 
+					filter.createdAt = {
+							$gte: startDate,
+							$lte: endDate,
+					};
+			}
 			const whereCondition = {
 				...filter,
 				...searchCondition
@@ -139,8 +156,10 @@ export class SpinRepository {
 						rewardAmount: 1,
 						spinFee: 1,
 						userId: 1,
+						createdAt: 1,
 						"userData.name": 1,
-						"userData.email": 1
+						"userData.email": 1,
+						"userData.avatarUrl": 1
 					}
 				},
 				{ $sort: { createdAt: sortOrder as SortOrder } },
@@ -172,7 +191,7 @@ export class SpinRepository {
 				}
 			};
 		} catch (error) {
-			console.error('Error fetching spin history:', error);
+			logger.error('Error fetching spin history:', error);
 			return {
 				status: false,
 				code: 500,

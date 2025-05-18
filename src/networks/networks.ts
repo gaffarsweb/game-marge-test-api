@@ -20,15 +20,8 @@ export let networks = [
 		"rpc": "https://data-seed-prebsc-1-s1.binance.org:8545/",
 		"currency": "tGMG",
 		"image": "https://gamerge-bucket.s3.ap-south-1.amazonaws.com/images/1745229330985-Group-2574.png",
-		"chainId": 97,
-		"tokens": [
-			{
-				"chainId": 97,
-				"image": "https://gamerge-bucket.s3.ap-south-1.amazonaws.com/images/1745229330985-Group-2574.png",
-				"tokenSymbol": "GMG-Token",
-				"tokenAddress": "0x337610d27c682134719cD602D4b3b107C3d34dDd"
-			}
-		]
+		"chainId": 90,
+		"tokens": []
 	},
 	{
 		"name": "Ethereum Sepolia Testnet",

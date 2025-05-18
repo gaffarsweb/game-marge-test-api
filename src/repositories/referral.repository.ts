@@ -1,19 +1,92 @@
 import mongoose, { Schema } from "mongoose";
 import referralHistory from "../models/referralHistory.model";
+import { networks } from "../networks/networks";
+import inGameCoinReferralHistory from "../models/inGameCoinreferralHistory.model";
+import networksModel from "../models/networks.model";
 
 export class referralRepository {
 
 	async getReferralHistory(userId: any): Promise<any> {
+		const networks = await networksModel.find().sort({ _id: 1 });
+		const result = await referralHistory.aggregate([
+			{
+				$match: {
+					referredBy: new mongoose.Types.ObjectId(userId)
+				}
+			},
+			{
+				$lookup: {
+					from: "users",
+					localField: "referredTo",
+					foreignField: "_id",
+					as: "referredTo"
+				}
+			},
+			{ $unwind: "$referredTo" },
+			{
+				$lookup: {
+					from: "ingamecoinreferralhistories",
+					let: { referredToId: "$referredTo._id" },
+					pipeline: [
+						{
+							$match: {
+								$expr: { $eq: ["$referredTo", "$$referredToId"] }
+							}
+						},
+						{
+							$group: {
+								_id: "$referredTo",
+								totalAmount: { $sum: "$balance" }
+							}
+						}
+					],
+					as: "coinHistory"
+				}
+			},
+			{
+				$addFields: {
+					InGameCoinAmount: {
+						$ifNull: [{ $arrayElemAt: ["$coinHistory.totalAmount", 0] }, 0]
+					}
+				}
+			},
+			{
+				$project: {
+					referredTo: {
+						_id: 1,
+						name: 1,
+						email: 1,
+						createdAt: 1,
+						avatarUrl: 1
+						// Add other needed user fields
+					},
+					currency: 1,
+					balance:1,
+					InGameCoinAmount: 1
+				}
+			}
+		]).sort({_id:-1});
 
-		let result = await referralHistory.find({ referredBy: userId })
-			.populate({
-				path: "referredTo",
-				select: "-password -referralCode -otp -otpExpiredAt -playedPracticeGame -refreshToken -__v -updatedAt"
-			});
+		if (result.length === 0) return result;
+
+		for (const element of result) {
+			for (const net of networks) {
+				if (net.currency === element.currency) {
+					element.currencyImg = net.image;
+					break;
+				}
+
+				const matchingToken = net.tokens.find(t => t.tokenSymbol === element.currency);
+				if (matchingToken) {
+					element.currencyImg = matchingToken.image;
+					break;
+				}
+			}
+		}
 
 		return result;
-
 	}
+
 	async getReferralListByUserId(query: any, userId: Schema.Types.ObjectId): Promise<any> {
 		const { page = 1, limit = 10, sort = -1, search } = query;
 		const skip = (page - 1) * limit;
@@ -98,10 +171,10 @@ export class referralRepository {
 					createdAt: 1,
 					'referredBy._id': 1,
 					'referredBy.name': 1,
-					'referredBy.email': 1, 
-					'referredBy.isEmailVerified': 1, 
-					'referredBy.country': 1, 
-					'referredBy.referredBy': 1, 
+					'referredBy.email': 1,
+					'referredBy.isEmailVerified': 1,
+					'referredBy.country': 1,
+					'referredBy.referredBy': 1,
 					'referredBy.avatarUrl': 1,
 					'referredBy.earnedCoins': 1,
 					'referredBy.provider': 1,

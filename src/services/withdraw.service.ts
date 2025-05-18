@@ -2,6 +2,7 @@ import { Schema } from "mongoose";
 import { withdrawServices } from "../repositories/withdraw.repository";
 import { HTTP_STATUS } from "../utils/httpStatus";
 import { CustomError } from "../utils/custom-error";
+import { Response } from "express";
 
 export class WithdrawServices {
 
@@ -19,8 +20,8 @@ export class WithdrawServices {
         const wallet = await this.WithdrawServicess.resentWithdrawRequestVerification(userId, requestId);
         return wallet;
     }
-    async allWithdrawalRequests(userId: any, query: any) {
-        const wallet = await this.WithdrawServicess.allWithdrawalRequests(userId, query);
+    async allWithdrawalRequests(query: { page?:string, limit?:string, sort?: string, search?: string, filter?: string, userId:string, isExport?: string }, res:Response) {
+        const wallet = await this.WithdrawServicess.allWithdrawalRequests(query, res);
         return wallet;
     }
     async approveRequest(userId: any, requestId:Schema.Types.ObjectId) {

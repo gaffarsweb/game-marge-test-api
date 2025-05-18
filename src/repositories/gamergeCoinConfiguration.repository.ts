@@ -8,6 +8,8 @@ import WalletModel from "../models/wallet.model";
 import TransactionModel from "../models/transaction.model";
 import { networks } from "../networks/networks";
 import gamergeCoinConfigurationModel from "../models/gamergeCoinConfiguration.model";
+import { logger } from "../utils/logger";
+import networksModel from "../models/networks.model";
 
 export class GamergeCoinConfigurationRepository implements IGamergeRepository {
     public async addGamergeConfiguration(payload: IGamergePayload): Promise<any> {
@@ -20,7 +22,7 @@ export class GamergeCoinConfigurationRepository implements IGamergeRepository {
                     msg: `Only "BNB Smart Chain Testnet" network and "USDT" currency is allowed for now.`
                 };
             }
-
+            const networks = await networksModel.find().sort({ _id: 1 });
             const matchedNetwork = networks.find(net => net.name === payload.network);
             const matchedToken = matchedNetwork?.tokens.find(token => token.tokenSymbol === payload.currency);
             const currencyImage = matchedToken?.image;
@@ -52,7 +54,7 @@ export class GamergeCoinConfigurationRepository implements IGamergeRepository {
                 };
             }
         } catch (error) {
-            console.error('Error adding or updating Gamerge configuration:', error);
+            logger.error('Error adding or updating Gamerge configuration:', error);
             return {
                 status: false,
                 code: 500,
@@ -79,7 +81,7 @@ export class GamergeCoinConfigurationRepository implements IGamergeRepository {
                 data: config,
             };
         } catch (error) {
-            console.error('Error fetching Gamerge configuration:', error);
+            logger.error('Error fetching Gamerge configuration:', error);
             return {
                 status: false,
                 code: 500,
@@ -146,7 +148,7 @@ export class GamergeCoinConfigurationRepository implements IGamergeRepository {
             };
 
         } catch (error) {
-            console.error('Error fetching possible Gamerge coins:', error);
+            logger.error('Error fetching possible Gamerge coins:', error);
             return {
                 status: false,
                 code: 500,
@@ -268,7 +270,7 @@ export class GamergeCoinConfigurationRepository implements IGamergeRepository {
         } catch (error) {
             await session.abortTransaction();
             session.endSession();
-            console.error('Error processing Gamerge token purchase:', error);
+            logger.error('Error processing Gamerge token purchase:', error);
             return {
                 status: false,
                 code: 500,

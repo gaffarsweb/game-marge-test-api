@@ -35,12 +35,18 @@ import spinRoutes from './routes/spin.routes';
 import gamergeConfigurationRoutes from './routes/gamergeCoinConfiguration.routes';
 import burnEventRoutes from './routes/burnevent.routes';
 import chatMessageRoutes from './routes/chatmessage.routes';
+import depositRoutes from "./routes/deposit.routes";
+import securityRoutes from "./routes/security.routes";
+import permissionRoutes from "./routes/permissionRoutes.routes";
+import networksRoutes from "./routes/networksRoutes.routes";
 
 import { connectDB } from './utils/db';
-import { setupSocket } from './utils/socket';
+import { setupGameSockets } from "./sockets/game.socket";
 import { startTournamentRewardCron, startTournamentStatusUpdateCron } from "./utils/cronJobs/tournamentCron";
 import { scheduleUSDRateUpdates } from "./utils/cronJobs/getUsdRate.job";
 import { updateBalanceOfAllUsers } from "./utils/cronJobs/updateBalanceOfAllUsers";
+import { setupChatSockets } from "./sockets/chat.socket";
+import { startAirdropStatusUpdateCron } from "./utils/cronJobs/airdropCron";
 dotenv.config();
 
 const app = express();
@@ -64,11 +70,6 @@ app.use(helmet());
 app.use(cookieParser());
 app.use(errorHandler);
 
-app.use((req: Request, _: Response, next: NextFunction) => {
-  logger.info(`Processing request for ${req.method} ${req.url}`);
-  logger.info(`Request body : ${JSON.stringify(req.body)}`);
-  next();
-});
 
 app.use('/api/auth', authRoutes);
 app.use('/api/games', gamesRoutes);
@@ -95,6 +96,10 @@ app.use('/api/spin', spinRoutes);
 app.use('/api/gamerge-configuration', gamergeConfigurationRoutes);
 app.use('/api/burn-events', burnEventRoutes);
 app.use('/api/messages', chatMessageRoutes);
+app.use("/api/deposits", depositRoutes);
+app.use("/api/security", securityRoutes);
+app.use("/api/permission", permissionRoutes);
+app.use("/api/networks", networksRoutes);
 
 
  
@@ -109,7 +114,13 @@ startTournamentRewardCron()
 startTournamentStatusUpdateCron();
 scheduleUSDRateUpdates();
 updateBalanceOfAllUsers();
-setupSocket(io);
+startAirdropStatusUpdateCron();
+io.on("connection", (socket) => {
+
+  logger.info(`New client connected: ${socket.id} with id: ${socket.handshake.query.userId}`);
+  setupGameSockets(io, socket);  
+  setupChatSockets(io, socket); 
+});
 server.listen(port, () => {
   connectDB();
   logger.info(`Server is running on port ${port}`);

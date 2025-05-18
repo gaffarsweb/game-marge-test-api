@@ -7,15 +7,15 @@ import { HTTP_STATUS } from '../utils/httpStatus';
 
 
 export class TournamentService {
-  constructor(private tournamentRepository: TournamentRepository=new TournamentRepository()) {}
+  constructor(private tournamentRepository: TournamentRepository = new TournamentRepository()) { }
 
   async createTournament(tournament: ITournament): Promise<ITournament> {
     return await this.tournamentRepository.createTournament(tournament);
   }
 
   async getTournamentById(id: Schema.Types.ObjectId): Promise<ITournament | null> {
-    const tournament= await this.tournamentRepository.getTournamentById(id);
-    if(!tournament) {
+    const tournament = await this.tournamentRepository.getTournamentById(id);
+    if (!tournament) {
       throw new CustomError("Tournament not found", HTTP_STATUS.NOT_FOUND);
     }
     return tournament;
@@ -24,43 +24,72 @@ export class TournamentService {
   async updateTournament(id: Schema.Types.ObjectId, tournament: Partial<ITournament>): Promise<ITournament | null> {
     return await this.tournamentRepository.updateTournament(id, tournament);
   }
-    async deleteTournament(id: Schema.Types.ObjectId): Promise<void> {
-        return await this.tournamentRepository.deleteTournament(id);
-    }
-
-    async getAllTournamentsForApp(payload:any): Promise<{ tournaments: ITournament[]; total: number }> {
-        const result= await this.tournamentRepository.getAllTournamentsForApp(payload);
-        if(result.tournaments.length === 0){
-            throw new CustomError("No tournaments found",HTTP_STATUS.NOT_FOUND);
-        }
-        return result;
-    }
-    async getAllTournaments(payload:Partial<GetTournamentsParams>): Promise<{ tournaments: ITournament[]; total: number }> {
-        const result= await this.tournamentRepository.getAllTournaments(payload);
-        if(result.tournaments.length === 0){
-            throw new CustomError("No tournaments found",HTTP_STATUS.NOT_FOUND);
-        }
-        return result;
-    }
-
-    async getTournamentDetailsById(tournamentId:string,userId: Schema.Types.ObjectId): Promise<ITournament[]> {
-        const tournaments= await this.tournamentRepository.getTournamentDetailsById(tournamentId,userId);
-        return tournaments;
-    }
-    async getTournamentDetailsForAdmin(tournamentId:string, query: { page?: number; limit?: number; search?: string; email?: string; sortBy?: string; order?: "asc" | "desc" }): Promise<ITournament[]> {
-        const tournaments= await this.tournamentRepository.getTournamentDetailsForAdmin(tournamentId, query);
-        return tournaments;
-    }
-    async getTournamentParticipations(tournamentId:string, query: { page?: number; limit?: number, search?: string; sort?: string }): Promise<ITournament[]> {
-        const tournaments= await this.tournamentRepository.getTournamentParticipations(tournamentId, query);
-        return tournaments;
-    }
-
-    async getTournamentWithoutPage(): Promise<{ tournaments: ITournament[]}> {
-      const result= await this.tournamentRepository.getTournamentWithoutPage();
-      if(result.tournaments.length === 0){
-          throw new CustomError("No tournaments found",HTTP_STATUS.NOT_FOUND);
-      }
-      return result;
+  async deleteTournament(id: Schema.Types.ObjectId): Promise<void> {
+    return await this.tournamentRepository.deleteTournament(id);
   }
+
+  async getAllTournamentsForApp(payload: any): Promise<{ tournaments: ITournament[]; total: number }> {
+    const result = await this.tournamentRepository.getAllTournamentsForApp(payload);
+    if (result.tournaments.length === 0) {
+      throw new CustomError("No tournaments found", HTTP_STATUS.NOT_FOUND);
+    }
+    return result;
+  }
+  async getAllTournaments(payload: Partial<GetTournamentsParams>): Promise<{ tournaments: ITournament[]; total: number }> {
+    const result = await this.tournamentRepository.getAllTournaments(payload);
+    if (result.tournaments.length === 0) {
+      throw new CustomError("No tournaments found", HTTP_STATUS.NOT_FOUND);
+    }
+    return result;
+  }
+
+  async getTournamentDetailsById(tournamentId: string, userId: string): Promise<ITournament[]> {
+    const tournaments = await this.tournamentRepository.getTournamentDetailsById(tournamentId, userId);
+    return tournaments;
+  }
+    async getTournamentDetailsAdminById(tournamentId:string,userId:string): Promise<ITournament[]> {
+      const tournaments= await this.tournamentRepository.getTournamentDetailsAdminById(tournamentId,userId);
+      return tournaments;
+  }
+  async getTournamentDetailsForAdmin(tournamentId: string, query: { page?: number; limit?: number; search?: string; email?: string; sortBy?: string; order?: "asc" | "desc" }): Promise<ITournament[]> {
+    const tournaments = await this.tournamentRepository.getTournamentDetailsForAdmin(tournamentId, query);
+    return tournaments;
+  }
+  async getTournamentParticipations(tournamentId: string, query: { page?: number; limit?: number, search?: string; sort?: string }): Promise<ITournament[]> {
+    const tournaments = await this.tournamentRepository.getTournamentParticipations(tournamentId, query);
+    return tournaments;
+  }
+
+  async getTournamentWithoutPage(): Promise<{ tournaments: ITournament[] }> {
+    const result = await this.tournamentRepository.getTournamentWithoutPage();
+    if (result.tournaments.length === 0) {
+      throw new CustomError("No tournaments found", HTTP_STATUS.NOT_FOUND);
+    }
+    return result;
+  }
+  async getTournamentsByGameId({
+    gameId,
+    page,
+    limit,
+    sort,
+    search,
+    selectedCurrency,
+  }: {
+    gameId: string;
+    page: number;
+    limit: number;
+    sort: string;
+    search: string;
+    selectedCurrency: string;
+  }): Promise<{ tournaments: ITournament[]; total: number }> {
+    return await this.tournamentRepository.getTournamentsByGameId({
+      gameId,
+      page,
+      limit,
+      sort,
+      search,
+      selectedCurrency,
+    });
+  }
+
 }

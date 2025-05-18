@@ -1,32 +1,60 @@
 import { body } from "express-validator";
+
 export const registerValidation = [
-  body("name").notEmpty().withMessage("Name is required"),
-  body("email").isEmail().withMessage("Invalid email format").normalizeEmail(),
-  body("password")
+   body("firstName")
   .notEmpty()
-  .withMessage("Password is required")
-  .isLength({ min: 6 })
-  .withMessage("Password must be at least 6 characters long"),
-  body("confirmPassword")
-  .notEmpty()
-  .withMessage("Confirm password is required")
-  .isLength({ min: 6 })
-  .withMessage("Confirm password must be at least 6 characters long"),
-  body("referredBy")
+  .withMessage("First Name is required")
+  .isString()
+  .withMessage("First Name should be a valid string")
+  .trim(),
+  body("lastName")
   .optional()
-  .isHexadecimal()
-  .withMessage("Invalid referral code format")
-  ,
+  .isString()
+  .withMessage("Last Name should be a valid string")
+  .trim(),
+
+  body("email")
+    .isEmail()
+    .withMessage("Invalid email format")
+    .normalizeEmail(),
+
+  body("password")
+    .notEmpty()
+    .withMessage("Password is required")
+    .isLength({ min: 8 })
+    .withMessage("Password must be at least 8 characters long")
+    .matches(/[a-z]/)
+    .withMessage("Password must contain at least one lowercase letter")
+    .matches(/[A-Z]/)
+    .withMessage("Password must contain at least one uppercase letter")
+    .matches(/\d/)
+    .withMessage("Password must contain at least one digit")
+    .matches(/[^a-zA-Z0-9]/)
+    .withMessage("Password must contain at least one special character"),
+
+  body("confirmPassword")
+    .notEmpty()
+    .withMessage("Confirm password is required")
+    .custom((value, { req }) => value === req.body.password)
+    .withMessage("Passwords do not match"),
+
+  body("referredBy")
+    .optional()
+    .isHexadecimal()
+    .withMessage("Invalid referral code format"),
+
   body("country")
     .isString()
     .notEmpty()
     .withMessage("Country is required.")
     .trim(),
+
   body("role")
-  .optional() 
-   .isIn(["user", "admin"])
-    .withMessage("Role must be either user or admin")
+    .optional()
+    .isIn(["user", "admin", "superAdmin"])
+    .withMessage("Role must be either user, admin, or superAdmin"),
 ];
+
 export const registerOtpValidation = [
   body("email").isEmail().withMessage("Invalid email format").normalizeEmail(),
   body("otp")
@@ -36,19 +64,14 @@ export const registerOtpValidation = [
     ,
   
 ];
-
-export const loginValidation = [
+export const validateLogin = [
   body("email").isEmail().withMessage("Invalid email format").normalizeEmail(),
-  body("password")
+   body("password")
     .notEmpty()
     .withMessage("Password is required")
-    .isLength({ min: 6 })
-    .withMessage("Password must be 6 character long"),
 ];
 
 export const updateUserValidation = [
-  body("name").notEmpty().withMessage("Name is required").optional(),
-
   body("avatarUrl")
     .isURL()
     .withMessage("Avatar Url must be a valid URL")
@@ -62,11 +85,16 @@ export const updateUserValidation = [
     .withMessage("Country must be a valid string")
     .trim()
     .optional(),
-  body("name")
+  body("firstName")
   .notEmpty()
-  .withMessage("Name is required")
+  .withMessage("First Name is required")
   .isString()
-  .withMessage("Name should be a valid string")
+  .withMessage("First Name should be a valid string")
+  .trim()
+  .optional(),
+  body("lastName")
+  .isString()
+  .withMessage("Last Name should be a valid string")
   .trim()
   .optional(),
 ];
@@ -96,11 +124,15 @@ export const updatePasswordValidation = [
 ];
 
 export const validateSocialLogin = [
-  body("name")
+  body("firstName")
     .isString()
-    .withMessage("Name must be a string")
+    .withMessage("First Name must be a string")
     .notEmpty()
-    .withMessage("Name is required"),
+    .withMessage("First Name is required"),
+  body("lastName")
+    .optional()
+    .isString()
+    .withMessage("Last Name must be a string"),
 
   body("email")
     .isEmail()
@@ -122,4 +154,89 @@ export const validateSocialLogin = [
   body("idToken")
     .isJWT()
     .withMessage("idToken must be a valid JWT token"),
+];
+
+export const validateResetPassword = [
+  body("newPassword")
+    .notEmpty()
+    .withMessage("Password is required")
+    .isLength({ min: 8 })
+    .withMessage("Password must be at least 8 characters long")
+    .matches(/[a-z]/)
+    .withMessage("Password must contain at least one lowercase letter")
+    .matches(/[A-Z]/)
+    .withMessage("Password must contain at least one uppercase letter")
+    .matches(/\d/)
+    .withMessage("Password must contain at least one digit")
+    .matches(/[^a-zA-Z0-9]/)
+    .withMessage("Password must contain at least one special character"),
+
+  body("confirmPassword")
+    .notEmpty()
+    .withMessage("Confirm password is required")
+    .custom((value, { req }) => value === req.body.newPassword)
+    .withMessage("Passwords do not match"),
+
+   body("email")
+    .isEmail()
+    .withMessage("Invalid email format")
+    .normalizeEmail(),
+
+  body("otpToken")
+    .notEmpty()
+    .withMessage("OTP token is required.")
+    .isJWT()
+    .withMessage("OTP Token should be a valid JWT Token")
+    .trim(),
+];
+
+export const validateAddAdmin = [
+  body("firstName")
+    .notEmpty()
+    .withMessage("First Name is required")
+    .isString()
+    .withMessage("First Name should be a valid string")
+    ,
+
+  body("lastName")
+    .optional()
+    .isString()
+    .withMessage("First Name should be a valid string"),
+
+  body("email")
+    .isEmail()
+    .withMessage("Invalid email format")
+    .normalizeEmail(),
+
+  body("password")
+    .notEmpty()
+    .withMessage("Password is required")
+    .isLength({ min: 8 })
+    .withMessage("Password must be at least 8 characters long")
+    .matches(/[a-z]/)
+    .withMessage("Password must contain at least one lowercase letter")
+    .matches(/[A-Z]/)
+    .withMessage("Password must contain at least one uppercase letter")
+    .matches(/\d/)
+    .withMessage("Password must contain at least one digit")
+    .matches(/[^a-zA-Z0-9]/)
+    .withMessage("Password must contain at least one special character"),
+
+  body("confirmPassword")
+    .notEmpty()
+    .withMessage("Confirm password is required")
+    .custom((value, { req }) => value === req.body.password)
+    .withMessage("Passwords do not match"),
+
+  body("country")
+    .isString()
+    .notEmpty()
+    .withMessage("Country is required.")
+    .trim(),
+
+  body("role")
+    .notEmpty()
+    .withMessage("Role is required.")
+    .isIn(["admin", "superAdmin"])
+    .withMessage("Role must be either admin, or superAdmin."),
 ];

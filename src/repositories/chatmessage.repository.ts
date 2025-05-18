@@ -1,4 +1,4 @@
-import { SortOrder } from "mongoose";
+import mongoose, { Types } from "mongoose";
 import { ChatMessages } from "../interfaces/chatmessage.interface";
 import ChatMessage from "../models/chatmessage.model";
 import userModel from "../models/user.model";
@@ -11,99 +11,87 @@ export class ChatMessageRepository {
 				{ senderId: payload.receiverId, receiverId: payload.senderId },
 			],
 		})
-			.sort({ createdAt: -1 });
+			.sort({ createdAt: 1 });
 		return messages;
 	}
-	async createNewMessage(payload: any): Promise<any> {
-		const newMessage = await ChatMessage.create(payload);
-		return newMessage;
+	async getAdminConversations(): Promise<any> {
+		const adminId = process.env.ADMIN_USER_ID || "67f0c16d590de0594bc56742";
+
+		const aggregate = await ChatMessage.aggregate([
+			{ $match: { receiverId: new Types.ObjectId(adminId) } },
+			{
+				$group: {
+					_id: "$senderId",
+					lastMessage: { $last: "$$ROOT" },
+					unreadCount: {
+						$sum: {
+							$cond: [{ $eq: ["$isRead", false] }, 1, 0]
+						}
+					}
+				}
+			},
+			{
+				$lookup: {
+					from: "users",
+					localField: "_id",
+					foreignField: "_id",
+					as: "user"
+				}
+			},
+			{ $unwind: "$user" },
+			{
+				$project: {
+					userId: "$_id",
+					name: "$user.name",
+					avatar: "$user.avatarUrl",
+					lastMessage: 1,
+					unreadCount: 1
+				}
+			}
+		]);
+
+		return aggregate;
 	}
-
-	async getUsersWhoHasMessaged(query: { page?: string, limit?: string, sort?: string, search?: string, filter?: string }): Promise<any> {
+	async getUserDetails({ userId }: { userId: string }): Promise<any> {
 		try {
-			const page = query.page ? parseInt(query.page, 10) : 1;
-			const limit = query.limit ? parseInt(query.limit, 10) : 10;
-			const sortOrder = query.sort ? Number(query.sort) : -1;
-			const search = query.search ?? '';
-			const filter = query.filter ? JSON.parse(query.filter) : {};
-
-			const matchUserFilter: any = {
-				...filter,
-				...(search
-					? { name: { $regex: search, $options: 'i' } }
-					: {})
-			};
-
-			const result = await ChatMessage.aggregate([
+			const userData = await userModel.aggregate([
 				{
-					$group: {
-						_id: "$senderId",
-						latestMessageDate: { $max: "$createdAt" }
+					$match: {
+						_id: new mongoose.Types.ObjectId(userId)
 					}
 				},
 				{
 					$lookup: {
-						from: "users",
-						localField: "_id",
-						foreignField: "_id",
-						as: "user"
+						from: 'wallets',
+						localField: '_id',
+						foreignField: 'userId',
+						as: 'walletDetails'
 					}
 				},
-				{ $unwind: "$user" },
-				{ $match: { "user.name": matchUserFilter.name ?? /.*/ } },
 				{
-					$lookup: {
-						from: "chatmessages",
-						let: { senderId: "$_id" },
-						pipeline: [
-							{ $match: { $expr: { $eq: ["$senderId", "$$senderId"] } } },
-							{ $sort: { createdAt: -1 } }
-						],
-						as: "messages"
+					$unwind: {
+						path: "$walletDetails",
+						preserveNullAndEmptyArrays: true
 					}
 				},
 				{
 					$project: {
-						_id: "$user._id",
-						name: "$user.name",
-						email: "$user.email",
-						messages: 1,
-						latestMessageDate: 1
+						_id: 1,
+						name: 1,
+						email: 1,
+						createdAt: 1,
+						isEmailVerified: 1,
+						'walletDetails.address': 1,
+						'walletDetails.balances': 1
 					}
-				},
-				{ $sort: { latestMessageDate: sortOrder as 1 | -1 } },
-				{ $skip: (page - 1) * limit },
-				{ $limit: limit }
+				}
 			]);
-
-			const count = await ChatMessage.aggregate([
-				{ $group: { _id: "$senderId" } },
-				{
-					$lookup: {
-						from: "users",
-						localField: "_id",
-						foreignField: "_id",
-						as: "user"
-					}
-				},
-				{ $unwind: "$user" },
-				{ $match: { "user.name": matchUserFilter.name ?? /.*/ } },
-				{ $count: "total" }
-			]);
-
-			const totalResult = count[0]?.total ?? 0;
 
 			return {
 				status: true,
 				code: 200,
-				data: {
-					result,
-					page,
-					limit,
-					totalResult
-				}
+				data: userData[0] || null  
 			};
-
 		} catch (error) {
 			console.error("Error while fetching users with messages:", error);
 			return {
@@ -113,5 +101,6 @@ export class ChatMessageRepository {
 			};
 		}
 	}
+
 
 }

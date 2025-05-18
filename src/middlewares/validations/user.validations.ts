@@ -36,6 +36,8 @@ export const updateUserProfileValidation = [
   .withMessage("isActive should be a boolean")
   .trim()
   .optional(),
+
+  body('isEmailVerified').optional().isBoolean().withMessage("is email verified should be a boolean value")
 ];
 
 export const getAllUsers = [

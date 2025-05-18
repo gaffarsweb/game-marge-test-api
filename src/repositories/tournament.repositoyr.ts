@@ -1,4 +1,4 @@
-import { Schema, Types } from "mongoose";
+import mongoose, { PipelineStage, Schema, SortOrder, Types } from "mongoose";
 import { GetTournamentsParams, ITournamentRepository } from "../interfaces/tournament.interface";
 import Tournament, { ITournament } from "../models/tournament.model";
 import tournamentParticipationModel from "../models/tournamentParticipation.model";
@@ -32,7 +32,7 @@ export class TournamentRepository implements ITournamentRepository {
 		return;
 	}
 
-	async getAllTournamentsForApp(query:any): Promise<{ tournaments: ITournament[], total: number }> {
+	async getAllTournamentsForApp(query: any): Promise<{ tournaments: ITournament[], total: number }> {
 		// const filters: any = {
 		// 	gameId,
 		// };
@@ -57,9 +57,12 @@ export class TournamentRepository implements ITournamentRepository {
 		search = "",
 		sort = "",
 		filter = "{}",
+		startDate = "",
+		endDate = "",
+		selectedCurrency = "",
 	}: Partial<GetTournamentsParams>): Promise<{ tournaments: ITournament[]; total: number }> {
 		const filters: any = {};
-	
+
 		// Parse and apply filters
 		if (filter && filter !== "{}") {
 			try {
@@ -69,7 +72,19 @@ export class TournamentRepository implements ITournamentRepository {
 				console.warn("Invalid filter JSON:", err);
 			}
 		}
-	
+		if (startDate && endDate) {
+			const start = new Date(startDate);
+			const end = new Date(endDate);
+			end.setHours(23, 59, 59, 999); // Include the entire end date
+			filters.createdAt = {
+				$gte: start,
+				$lte: end
+			};
+		}
+		if (selectedCurrency && selectedCurrency !== "all") {
+			filters.currency = selectedCurrency;
+		}
+
 		if (search) {
 			const regex = new RegExp(search, "i");
 			filters.$or = [
@@ -77,18 +92,18 @@ export class TournamentRepository implements ITournamentRepository {
 				{ network: { $regex: regex } },
 			];
 		}
-	
+
 		let sortBy: Record<string, 1 | -1> = {};
 		if (sort === "1") {
 			sortBy.createdAt = 1;
 		} else if (sort === "-1") {
 			sortBy.createdAt = -1;
 		}
-	
+
 		const parsedLimit = Number(limit) || 10;
 		const parsedPage = Number(page) || 1;
 		const skip = (parsedPage - 1) * parsedLimit;
-	
+
 		const pipeline = [
 			{ $match: filters },
 			{
@@ -112,93 +127,275 @@ export class TournamentRepository implements ITournamentRepository {
 			{ $skip: skip },
 			{ $limit: parsedLimit }
 		];
-	
+
 		const [tournaments, totalCountResult] = await Promise.all([
 			Tournament.aggregate(pipeline),
 			Tournament.countDocuments(filters)
 		]);
-	
+
 		return {
 			tournaments,
 			total: totalCountResult
 		};
 	}
-	
-	
-	async getTournamentDetailsById(tournamentId: string, userId: Schema.Types.ObjectId): Promise<any> {
+
+
+	async getTournamentDetailsById(tournamentId: string, userId: string): Promise<any> {
 		const tournament = await tournamentModel.findById(tournamentId).lean();
 		if (!tournament) throw new Error("Tournament not found");
-	  
+
 		const totalParticipants = await tournamentParticipationModel.countDocuments({ tournamentId });
-	  
-		// Get all participations (not grouped)
-		const allParticipations = await tournamentParticipationModel.aggregate([
-		  { $match: { tournamentId: new Types.ObjectId(tournamentId) } },
-		  {
-			$lookup: {
-			  from: "users",
-			  localField: "userId",
-			  foreignField: "_id",
-			  as: "user"
-			}
-		  },
-		  { $unwind: "$user" },
-		  { $sort: { score: -1 } },
-		  {
-			$project: {
-			  _id: 1,
-			  userId: 1,
-			  username: { $ifNull: ["$user.name", "Unknown"] },
-			  avatar: {
-				$ifNull: ["$user.avatarUrl", "https://upload.wikimedia.org/wikipedia/commons/a/ac/Default_pfp.jpg"]
-			  },
-			  score: 1,
-			  createdAt: 1
-			}
-		  }
+
+		// Step 1: Get highest score per user (best only)
+		const bestScores = await tournamentParticipationModel.aggregate([
+			{ $match: { tournamentId: new Types.ObjectId(tournamentId) } },
+			{ $sort: { score: -1, createdAt: 1 } },
+			{
+				$group: {
+					_id: "$userId",
+					score: { $first: "$score" },
+					participationId: { $first: "$_id" },
+					createdAt: { $first: "$createdAt" }
+				}
+			},
+			{
+				$lookup: {
+					from: "users",
+					localField: "_id",
+					foreignField: "_id",
+					as: "user"
+				}
+			},
+			{ $unwind: "$user" },
+			{
+				$project: {
+					userId: "$_id",
+					_id: "$participationId",
+					username: { $ifNull: ["$user.name", "Unknown"] },
+					avatar: {
+						$ifNull: ["$user.avatarUrl", "https://upload.wikimedia.org/wikipedia/commons/a/ac/Default_pfp.jpg"]
+					},
+					score: 1,
+					createdAt: 1
+				}
+			},
+			{ $sort: { score: -1 } }
 		]);
-	  
-		// Assign ranks
-		let currentRank = 1;
-		const leaderboardWithRanks = allParticipations.map((entry) => {
-		  const rewardObj = tournament.rewardDistribution?.find(r => r.position === currentRank);
-		  return {
-			rank: currentRank++,
-			...entry,
-			reward: rewardObj?.amount || 0
-		  };
-		});
-	  
-		//  Extract user-specific participations
-		const userParticipations = leaderboardWithRanks.filter(entry => entry.userId.toString() === userId.toString());
-	  
-		// Leaderboard excluding the user
-		const leaderboard = leaderboardWithRanks.filter(entry => entry.userId.toString() !== userId.toString());
-	  
-		const bestUserScore = userParticipations.length > 0 ? userParticipations[0].score : 0;
-		const bestRank = userParticipations.length > 0 ? userParticipations[0].rank : null;
-	  
+
+		// Step 2: Assign ranks and identify logged-in user's best score
+		let leaderboard: any[] = [];
+		let userBestEntry: any = null;
+		let rank = 1;
+
+		for (const entry of bestScores) {
+			const rewardObj = tournament.rewardDistribution?.find(r => r.position === rank);
+			const item = {
+				...entry,
+				rank,
+				reward: rewardObj?.amount || 0
+			};
+
+			leaderboard.push(item);
+
+			if (entry.userId.toString() === userId.toString()) {
+				userBestEntry = item;
+			}
+
+			rank++;
+		}
+
+		// Step 3: Get ALL participations of this user (sorted)
+		const allUserParticipations = await tournamentParticipationModel.aggregate([
+			{
+				$match: {
+					tournamentId: new Types.ObjectId(tournamentId),
+					userId: new Types.ObjectId(userId)
+				}
+			},
+			{
+				$lookup: {
+					from: "users",
+					localField: "userId",
+					foreignField: "_id",
+					as: "user"
+				}
+			},
+			{ $unwind: "$user" },
+			{
+				$project: {
+					_id: 1,
+					userId: 1,
+					score: 1,
+					createdAt: 1,
+					username: "$user.name",
+					avatar: "$user.avatarUrl"
+				}
+			},
+			{ $sort: { score: -1 } }
+		]);
+		// Step 4: Remove the best entry by participationId only
+		const participationsWithoutBest = allUserParticipations
+			.filter(p => userBestEntry && p._id.toString() !== userBestEntry._id.toString())
+			.map(p => ({
+				...p,
+				rank: 0,
+				reward: 0
+			}));
+
+		const allUserParticipationWithBest = userBestEntry
+			? [userBestEntry, ...participationsWithoutBest]
+			: participationsWithoutBest;
+
 		return {
-		  tournament: {
-			id: tournament._id,
-			name: tournament.name,
-			bannerImage: tournament.bannerImage,
-			startTime: tournament.startTime,
-			endTime: tournament.endTime,
-			entryFee: tournament.entryFee,
-			currency: tournament.currency,
-			rewardDistribution: tournament.rewardDistribution
-		  },
-		  registeredPlayers: totalParticipants,
-		  leaderboard, // Excludes logged-in user
-		  user: {
-			playedTimes: userParticipations.length,
-			bestScore: bestUserScore,
-			bestRank,
-			participations: userParticipations
-		  }
+			tournament: {
+				id: tournament._id,
+				name: tournament.name,
+				bannerImage: tournament.bannerImage,
+				startTime: tournament.startTime,
+				endTime: tournament.endTime,
+				entryFee: tournament.entryFee,
+				currency: tournament.currency,
+				rewardDistribution: tournament.rewardDistribution
+			},
+			registeredPlayers: totalParticipants,
+			leaderboard,
+			user: {
+				bestScore: userBestEntry?.score || 0,
+				bestRank: userBestEntry?.rank || null,
+				playedTimes: allUserParticipationWithBest.length,
+				participations: allUserParticipationWithBest
+			}
 		};
 	  }
+		async getTournamentDetailsAdminById(tournamentId: string, userId: string): Promise<any> {
+			const tournament = await tournamentModel.findById(tournamentId).lean();
+			if (!tournament) throw new Error("Tournament not found");
+			
+			const totalParticipants = await tournamentParticipationModel.countDocuments({ tournamentId });
+			
+			// Step 1: Get highest score per user (best only)
+			const bestScores = await tournamentParticipationModel.aggregate([
+				{ $match: { tournamentId: new Types.ObjectId(tournamentId) } },
+				{ $sort: { score: -1, createdAt: 1 } },
+				{
+				$group: {
+					_id: "$userId",
+					score: { $first: "$score" },
+					participationId: { $first: "$_id" },
+					createdAt: { $first: "$createdAt" }
+				}
+				},
+				{
+				$lookup: {
+					from: "users",
+					localField: "_id",
+					foreignField: "_id",
+					as: "user"
+				}
+				},
+				{ $unwind: "$user" },
+				{
+				$project: {
+					userId: "$_id",
+					_id: "$participationId",
+					username: { $ifNull: ["$user.name", "Unknown"] },
+					email: { $ifNull: ["$user.email", "No Email"] },
+					avatar: {
+					$ifNull: ["$user.avatarUrl", "https://upload.wikimedia.org/wikipedia/commons/a/ac/Default_pfp.jpg"]
+					},
+					score: 1,
+					createdAt: 1
+				}
+				},
+				{ $sort: { score: -1 } }
+			]);
+			
+			// Step 2: Assign ranks and identify logged-in user's best score
+			let leaderboard: any[] = [];
+			let userBestEntry: any = null;
+			let rank = 1;
+			
+			for (const entry of bestScores) {
+				const rewardObj = tournament.rewardDistribution?.find(r => r.position === rank);
+				const item = {
+				...entry,
+				rank,
+				reward: rewardObj?.amount || 0
+				};
+			
+				leaderboard.push(item);
+			
+				if (entry.userId.toString() === userId.toString()) {
+				userBestEntry = item;
+				}
+			
+				rank++;
+			}
+			
+			// Step 3: Get ALL participations of this user (sorted)
+			const allUserParticipations = await tournamentParticipationModel.aggregate([
+				{
+				$match: {
+					tournamentId: new Types.ObjectId(tournamentId),
+					userId: new Types.ObjectId(userId)
+				}
+				},
+				{
+				$lookup: {
+					from: "users",
+					localField: "userId",
+					foreignField: "_id",
+					as: "user"
+				}
+				},
+				{ $unwind: "$user" },
+				{
+				$project: {
+					_id: 1,
+					userId: 1,
+					score: 1,
+					createdAt: 1,
+					username: "$user.name",
+					email: "$user.email",
+					avatar: "$user.avatarUrl"
+				}
+				},
+				{ $sort: { score: -1 } }
+			]);
+			// Step 4: Remove the best entry by participationId only
+			const participationsWithoutBest = allUserParticipations
+				.filter(p => userBestEntry && p._id.toString() !== userBestEntry._id.toString())
+				.map(p => ({
+				...p,
+				rank: 0,
+				reward: 0
+				}));
+			
+			const allUserParticipationWithBest = userBestEntry
+				? [userBestEntry, ...participationsWithoutBest]
+				: participationsWithoutBest;
+			
+			return {
+				tournament: {
+				id: tournament._id,
+				name: tournament.name,
+				bannerImage: tournament.bannerImage,
+				startTime: tournament.startTime,
+				endTime: tournament.endTime,
+				entryFee: tournament.entryFee,
+				currency: tournament.currency,
+				rewardDistribution: tournament.rewardDistribution
+				},
+				registeredPlayers: totalParticipants,
+				leaderboard,
+				user: {
+				bestScore: userBestEntry?.score || 0,
+				bestRank: userBestEntry?.rank || null,
+				playedTimes: allUserParticipationWithBest.length,
+				participations: allUserParticipationWithBest
+				}
+			};
+			}
 	  
 	async getTournamentDetailsForAdmin(
 		tournamentId: string,
@@ -434,9 +631,10 @@ export class TournamentRepository implements ITournamentRepository {
 		};
 	}
 
-	async getTournamentWithoutPage(): Promise<{ tournaments: ITournament[]}> {
-	
+	async getTournamentWithoutPage(): Promise<{ tournaments: ITournament[] }> {
+
 		const pipeline = [
+			{ $match: { status: 'ongoing' } },
 			{
 				$lookup: {
 					from: "games",
@@ -461,14 +659,82 @@ export class TournamentRepository implements ITournamentRepository {
 				}
 			}
 		];
-	
+
 		const [tournaments] = await Promise.all([
 			Tournament.aggregate(pipeline),
 		]);
-	
+
 		return {
 			tournaments,
 		};
 	}
+
+	async getTournamentsByGameId({
+		gameId,
+		page,
+		limit,
+		sort,
+		search,
+		selectedCurrency,
+	}: {
+		gameId: string;
+		page: number;
+		limit: number;
+		sort: string;
+		search: string;
+		selectedCurrency?: string;
+	}): Promise<{ tournaments: ITournament[]; total: number }> {
+
+		if (!mongoose.Types.ObjectId.isValid(gameId)) {
+			throw new Error("Invalid gameId");
+		}
+
+		const matchStage: PipelineStage.Match = {
+			$match: {
+				gameId: new mongoose.Types.ObjectId(gameId),
+				...(search && {
+					$or: [
+						{ name: { $regex: new RegExp(search, "i") } },
+						{ network: { $regex: new RegExp(search, "i") } },
+						{ currency: { $regex: new RegExp(search, "i") } },
+					],
+				}),
+				...(selectedCurrency && selectedCurrency !== "all" && {
+					currency: selectedCurrency,
+			}),
+			},
+		};
+
+		const sortValue = parseInt(sort, 10);
+		const sortDirection: 1 | -1 = sortValue === 1 ? 1 : -1;
+
+		const sortStage: PipelineStage.Sort = {
+			$sort: {
+				createdAt: sortDirection,
+			},
+		};
+
+		const skipStage: PipelineStage.Skip = { $skip: (page - 1) * limit };
+		const limitStage: PipelineStage.Limit = { $limit: limit };
+
+		const pipeline: PipelineStage[] = [
+			matchStage,
+			{
+				$facet: {
+					tournaments: [sortStage, skipStage, limitStage],
+					total: [{ $count: "count" }],
+				},
+			},
+		];
+
+		const [result] = await Tournament.aggregate(pipeline);
+
+		const tournaments = result?.tournaments || [];
+		const total = result?.total?.[0]?.count || 0;
+
+		return { tournaments, total };
+	}
+
+
 
 }

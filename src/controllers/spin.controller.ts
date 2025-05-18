@@ -11,7 +11,6 @@ class SpinController{
     constructor(private spinService:SpinService=new SpinService()){};
 
     spin = async (req: CustomRequest, res: Response):Promise<any> => {
-        logger.info("Spin endpoint hit.");
         const userId=req.user?.id!
         try {
            const result= await this.spinService.spin(userId,req.body.spinFee);
@@ -22,7 +21,6 @@ class SpinController{
     }
     
     rewardsUser = async (req: CustomRequest, res: Response):Promise<any> => {
-        logger.info("Reward user endpoint hit.");
         const userId=req.user?.id!;
         try {
             const result=await this.spinService.rewardUser(userId, req.body.combination,req.body.spinFee);
@@ -32,7 +30,6 @@ class SpinController{
         }
     }
     createSpinCombinations = async (req: Request, res: Response):Promise<any> => {
-        logger.info("Create spin combinations endpoint hit.");
         try {
             const combinations = await this.spinService.createSpinCombinations(req.body.combinations);
             return sendSuccessResponse(res, "Spin combinations created successfully.", combinations);
@@ -41,7 +38,6 @@ class SpinController{
         }
     }
     updateSpinCombinations = async (req: Request, res: Response):Promise<any> => {
-        logger.info("Update spin combinations endpoint hit.");
         const combinationId=(req.params.combinationId as any) as Schema.Types.ObjectId
         try {
             const updatedCombination = await this.spinService.updateSpinCombination(combinationId, req.body);
@@ -51,7 +47,6 @@ class SpinController{
         }
     }
     getSpinCombinations = async (req: Request, res: Response):Promise<any> => {
-        logger.info("Get spin combinations endpoint hit.");
         try {
             const combinations = await this.spinService.getSpinCombinations();
             return sendSuccessResponse(res, "Spin combinations retrieved successfully.", combinations);
@@ -60,7 +55,6 @@ class SpinController{
         }
     }
     getSpinCombination = async (req: Request, res: Response):Promise<any> => {
-        logger.info("Get spin combination by id endpoint hit.");
         const combinationId=(req.params.combinationId as any) as Schema.Types.ObjectId
         try {
             const combination = await this.spinService.getSpinCombination(combinationId);
@@ -70,7 +64,6 @@ class SpinController{
         }
     }
     deleteSpinCombinations = async (req: Request, res: Response):Promise<any> => {
-        logger.info("Delete spin combinations endpoint hit.");
         try {
             const combinationId=(req.params.combinationId as any) as Schema.Types.ObjectId
            const deletedCombination= await this.spinService.deleteSpinCombination(combinationId);
@@ -80,11 +73,10 @@ class SpinController{
         }
     }
     getSpinHistory = async (req: Request, res: Response): Promise<any> => {
-        logger.info("Get spin history endpoint hit.");
         try {
-            const { page, limit, sort, search, filter } = req.query as { page?:string, limit?:string, sort?: string, search?: string, filter?: string };
+            const { page, limit, sort, search, filter,startDate, endDate } = req.query as { page?:string, limit?:string, sort?: string, search?: string, filter?: string , startDate?: string, endDate?: string  };
     
-            const result = await this.spinService.getSpinHistory({page, limit, sort, search, filter});
+            const result = await this.spinService.getSpinHistory({page, limit, sort, search, filter,startDate, endDate });
             if (!result.status) {
                 return sendErrorResponse(res, null, result.msg, result.code);
             }
@@ -96,7 +88,6 @@ class SpinController{
     }
     
     getSpinFee = async (req: CustomRequest, res: Response):Promise<any> => {
-        logger.info("Get spin fee endpoint hit.");
         const userId=req.user?.id!;
         try {
             const spinFee = await this.spinService.getSpinFee(userId);

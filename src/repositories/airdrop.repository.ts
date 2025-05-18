@@ -103,7 +103,6 @@ export class AirdropRepository {
 	async claimTaskReward(userId: string, campaignId: string, taskIndex: number) {
 		const already = await AirdropTaskCompletion.findOne({ userId, campaignId, taskIndex });
 		if (already) throw new Error("Task already claimed");
-		console.log(`Claiming task ${taskIndex} for user ${userId} in campaign ${campaignId}`);
 		const campaign = await AirdropCampaign.findById(campaignId);
 		if (!campaign || !campaign.tasks[taskIndex]) throw new Error("Invalid task");
 
@@ -121,7 +120,8 @@ export class AirdropRepository {
 		//  2. Log transaction
 		await InGameCoinTransactions.create({
 			userId,
-			type: "task",
+			title:"Airdrop task reward",
+			type: "CREDITED",
 			description: `Airdrop task reward: ${task.title}`,
 			amount: task.reward,
 		});

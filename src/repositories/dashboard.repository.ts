@@ -9,6 +9,10 @@ import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
 import ActiveUser from '../models/activeUsers.model';
 import tournamentModel from '../models/tournament.model';
 import AirdropCampaign from '../models/airdrop.model';
+import gameModel from '../models/game.model';
+import burningCoinsModel from '../models/burningCoins.model';
+import referralHistory from '../models/referralHistory.model';
+import USDRateModel from '../models/USDRate.model';
 dayjs.extend(isSameOrBefore);
 
 export class DashboardRepository {
@@ -25,7 +29,7 @@ export class DashboardRepository {
     for (const banner of dashboardObj.banner) {
       if (banner.type && banner.link) {
         if (banner.type === 'tournament') {
-          const tournament = await tournamentModel.findById(banner.link).select('name ');
+          const tournament: any = await tournamentModel.findById(banner.link).select('name startTime endTime gameId').populate('gameId', 'name');;
           if (tournament) {
             banner.details = tournament;
           }
@@ -66,6 +70,14 @@ export class DashboardRepository {
   getUserStats = async () => {
     const result = await userModel.aggregate([
       {
+        $lookup: {
+          from: "burningcoins",          // the collection to join
+          localField: "_id",         // field from userModel
+          foreignField: "userId",    // field from the 'profiles' collection
+          as: "profileData"          // alias for the joined result
+        }
+      },
+      {
         $group: {
           _id: null,
           totalUsers: { $sum: 1 },
@@ -79,9 +91,30 @@ export class DashboardRepository {
       }
     ]);
 
+    const burningcoins = await burningCoinsModel.find();
+
+    if (burningcoins && result?.length > 0) {
+      result[0].burningCoins = burningcoins[0];
+    }
+    const referralHistories=await referralHistory.find();
+    const usdRetes=await USDRateModel.findOne().lean();
+
+    const currencies:Record<string,number>={}
+    referralHistories.forEach(({currency,balance})=>{
+      if(currencies[currency]===undefined){
+        currencies[currency]=balance;
+      }else{
+        currencies[currency]+=balance;
+      }
+    })
+    let totalRerreralInUSD=0;
+    for(let key in currencies){
+      totalRerreralInUSD+=currencies[key]*(usdRetes? usdRetes?.rates[key]:1);
+    }
+
     return result.length > 0
-      ? result[0]
-      : { totalUsers: 0, totalVerifiedUsers: 0, totalUnverifiedUsers: 0 };
+      ? {...result[0],totalRerreralInUSD}
+      : { totalUsers: 0, totalVerifiedUsers: 0, totalUnverifiedUsers: 0, burningcoins: {},totalRerreralInUSD:0 };
   };
 
   async getMatchStats(): Promise<any> {

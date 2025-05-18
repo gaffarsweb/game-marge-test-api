@@ -17,4 +17,7 @@ export interface GetTournamentsParams {
     search?: string;
     sort?: string;
     filter?: string;
+    startDate?: string;
+    endDate?: string;
+    selectedCurrency?:string;
   }

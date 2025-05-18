@@ -3,6 +3,7 @@ import multer from "multer";
 import s3 from "../utils/s3";
 import { NextFunction, RequestHandler } from "express";
 import { CustomRequest } from "../interfaces/auth.interface";
+import { logger } from "../utils/logger";
 
 
 const router = express.Router();
@@ -21,7 +22,7 @@ const checkIfFileExists = async (key: string): Promise<boolean> => {
         }).promise();
         return true; // The file exists
     } catch (error: any) {
-        console.log("error", error);
+        logger.error(`Error: ${error}`);
         if (error.code === "NotFound") {
             return false; // The file does not exist
         }
@@ -76,7 +77,7 @@ const uploadImg: RequestHandler = async (req: CustomRequest, res: Response, next
             fileUrl: uploadResult.Location,
         });
     } catch (error) {
-        console.error("Upload Error:", error);
+        logger.error("Upload Error:", error);
         next(error); // Pass error to Express error handler
     }
 };
@@ -100,7 +101,7 @@ const deleteImg: RequestHandler = async (req: CustomRequest, res: Response, next
 
         res.status(200).json({ message: "Image deleted successfully" });
     } catch (error) {
-        console.error("Delete Error:", error);
+        logger.error("Delete Error:", error);
         next(error); // Pass error to Express error handler
     }
 };

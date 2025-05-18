@@ -1,12 +1,8 @@
 import { Request, Response } from "express";
 import { GamergeCoinConfigurationService } from "../services/GamergeCoinConfiguration.service";
 import { logger } from "../utils/logger";
-import { CustomError } from "../utils/custom-error";
 import { sendSuccessResponse, sendErrorResponse } from "../utils/apiResponse";
 import { HTTP_MESSAGE, HTTP_STATUS } from "../utils/httpStatus";
-import { Schema } from "mongoose";
-import { IUpdateGame } from '../interfaces/game.interface';
-import { IPagination } from "../interfaces/news.interface";
 
 class GamergeCoinConfigurationController {
 

@@ -3,7 +3,7 @@ import { IPromotion } from "../models/promotions.model";
 
 export interface IPromotionRepository{
     createPromotion(news: IPromotionsPayload): Promise<IPromotion>;
-    getPromotions(query: IPagination): Promise<{result:IPromotion[], count:number}>;
+    getPromotions(userId:Schema.Types.ObjectId,query: IPagination): Promise<{result:IPromotion[], count:number}>;
     getPromotionById(id: Schema.Types.ObjectId): Promise<IPromotion | null>;
     updatePromotion(id: Schema.Types.ObjectId, promotion: IUpdatePromotion): Promise<IPromotion | null>;
     deletePromotion(id: Schema.Types.ObjectId): Promise<void>;

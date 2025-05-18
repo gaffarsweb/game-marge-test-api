@@ -1,9 +1,11 @@
 import { Schema, Document, model } from 'mongoose';
+import { referralBonusType } from '../utils/enums';
 
 export interface Bonus {
   currency: string;
   amount: number;
   network:string;
+  referralBonusType: string
 }
 export interface borningCoins {
   currency: string;
@@ -27,6 +29,7 @@ export interface ISettings extends Document {
   spinFee: number;
   spinLimit: number;
   botWaitingTime: number;
+  botResultWaitingTime:number,
   player2_referrer_percentage: number;
   updatedAt: Date;
   practiceGameLimit: number;
@@ -42,7 +45,12 @@ export interface ISettings extends Document {
 const BonusSchema = new Schema<Bonus>({
   currency: { type: String, required: true },
   amount: { type: Number, required: true },
-  network:{type:String, required:false}
+  network:{type:String, required:false},
+  referralBonusType: {
+    type: String,
+    enum: Object.values(referralBonusType), 
+    required: true
+  }
 }, { _id: false });
 const borningCoinsSchema = new Schema<borningCoins>({
   currency: { type: String, required: true },
@@ -69,7 +77,8 @@ const SettingsSchema = new Schema<ISettings>({
   practiceGameLimit: { type: Number, default: 5 },
   spinFee: { type: Number, default: 100 },
   spinLimit: { type: Number, default: 10 },
-  botWaitingTime: { type: Number,required:true, default: 10000 },
+  botWaitingTime: { type: Number,required:true, default: 10 },
+  botResultWaitingTime:{type:Number,required:true,default:10},
   lootToCoinConversion: [
     {
       _id: false,

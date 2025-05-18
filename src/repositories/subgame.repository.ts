@@ -2,6 +2,7 @@ import mongoose, { Schema } from "mongoose";
 import { networks } from "../networks/networks";
 import { ISubGameRepository, IUpdateSubGame } from "../interfaces/subgame.interface";
 import subgameModel, { ISubGame } from "../models/subgame.model";
+import networksModel from "../models/networks.model";
 
 export class SubGameRepository implements ISubGameRepository {
   async createSubGame(payload: ISubGame): Promise<ISubGame> {
@@ -11,6 +12,7 @@ export class SubGameRepository implements ISubGameRepository {
     gameId: any,
     query: any
   ): Promise<{ data: ISubGame[]; count: number }> {
+    const networks = await networksModel.find().sort({ _id: 1 });
 
     const currencyImages: Record<string, string> = {};
     networks.forEach((network) => {
@@ -23,7 +25,6 @@ export class SubGameRepository implements ISubGameRepository {
       data = await subgameModel.find({ gameId: new mongoose.Types.ObjectId(gameId), ...query }).lean();
       count = await subgameModel.countDocuments({ gameId, ...query });
     } else {
-      console.log('gameId', gameId)
       data = await subgameModel.find({ ...query }).lean();
       count = await subgameModel.countDocuments({ ...query });
     }
@@ -36,24 +37,25 @@ export class SubGameRepository implements ISubGameRepository {
 
     return { data: subgames, count };
   }
-  async getAllSubGamesForApp(query: any): Promise<{ data:any, count: number }> {
+  async getAllSubGamesForApp(query: any): Promise<{ data: any, count: number }> {
+    const networks = await networksModel.find().sort({ _id: 1 });
     const currencyImages: Record<string, string> = {};
     networks.forEach((network) => {
       currencyImages[network.currency] = network.image;
       if (network.tokens.length !== 0) currencyImages[network.tokens[0].tokenSymbol] = network.tokens[0].image;
     });
-    const [data,total]=await Promise.all([
+    const [data, total] = await Promise.all([
       subgameModel.find(query).lean(),
       subgameModel.countDocuments(query)
     ])
 
-    const subgames = data.map((subgame:ISubGame) => ({
+    const subgames = data.map((subgame: ISubGame) => ({
       ...subgame,
       currencyImage: currencyImages[subgame.currency] || ""
     }));
 
 
-    return { data: subgames, count:total };
+    return { data: subgames, count: total };
   }
 
 

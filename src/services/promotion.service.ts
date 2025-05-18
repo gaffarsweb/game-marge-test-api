@@ -11,9 +11,14 @@ export class PromotionServices {
     async createPromotion(payload: IPromotionsPayload): Promise<IPromotion> {
         return await this.promotionRepository.createPromotion(payload);
     }
-
-    async getPromotions(query: IPagination): Promise<{ result: IPromotion[], count: number }> {
-        const data= await this.promotionRepository.getPromotions(query);
+    async getUnreadCount(userId: Schema.Types.ObjectId): Promise<number> {
+        return await this.promotionRepository.getUnreadCount(userId);
+    }
+    async markAllAsRead(userId: Schema.Types.ObjectId): Promise<void> {
+        await this.promotionRepository.markAllAsRead(userId);
+    }
+    async getPromotions(userId:Schema.Types.ObjectId,query: IPagination): Promise<{ result: IPromotion[], count: number }> {
+        const data= await this.promotionRepository.getPromotions(userId,query);
         if(data.result.length===0){
             throw new CustomError('No promotion found',HTTP_STATUS.NOT_FOUND);
         }

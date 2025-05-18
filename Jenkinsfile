@@ -43,7 +43,10 @@ pipeline {
 				GAMERGE_API_QA_IMAGEKIT_URL_ENDPOINT = credentials("GAMERGE_API_QA_IMAGEKIT_URL_ENDPOINT")
 		    		GAMERGE_API_QA_EMAIL_ID = credentials("GAMERGE_API_QA_EMAIL_ID")
 		    		GAMERGE_API_QA_EMAIL_PASSWORD = credentials("GAMERGE_API_QA_EMAIL_PASSWORD")
+		    		GAMERGE_API_QA_ALCHEMY_API_KEY = credentials("GAMERGE_API_QA_ALCHEMY_API_KEY")
+		    		GAMERGE_API_QA_ETHERSCAN_API_KEY = credentials("GAMERGE_API_QA_ETHERSCAN_API_KEY")
 				GAMERGE_API_QA_IP = credentials("GAMERGE_API_QA_IP")
+		    
                 BRANCH_NAME = '${env.BRANCH_NAME}'
             }
             steps {
@@ -67,6 +70,8 @@ pipeline {
 				echo IMAGEKIT_PRIVATE_KEY=$GAMERGE_API_QA_IMAGEKIT_PRIVATE_KEY >> .env
 				echo IMAGEKIT_URL_ENDPOINT=$GAMERGE_API_QA_IMAGEKIT_URL_ENDPOINT >> .env
     				echo EMAIL_ID=$GAMERGE_API_QA_EMAIL_ID >> .env
+				echo ALCHEMY_API_KEY=$GAMERGE_API_QA_ALCHEMY_API_KEY >> .env
+    				echo ETHERSCAN_API_KEY=$GAMERGE_API_QA_ETHERSCAN_API_KEY >> .env
 				echo EMAIL_PASSWORD=$GAMERGE_API_QA_EMAIL_PASSWORD >> .env
 
                 sed -i 's/environment/qa/g' ecosystem.config.ts
@@ -95,7 +100,7 @@ pipeline {
                     npm run build
                     rsync -avz --exclude '.git' --delete -e "ssh -i $sshkey" ./dist/ ubuntu@${GAMERGE_API_QA_IP}:/home/ubuntu/repo/QA-BACKEND-GAMERGE/$BRANCH_NAME/dist
                     echo "data moved"
-		    ssh -i $sshkey ubuntu@${GAMERGE_API_QA_IP} "export PATH=\$PATH:/home/ubuntu/.nvm/versions/node/v21.7.3/bin && cd /home/ubuntu/repo/QA-BACKEND-GAMERGE/main/dist && pm2 restart QA-BACKEND-GAMERGE && pm2 save"
+		    ssh -i $sshkey ubuntu@${GAMERGE_API_QA_IP} "export PATH=\$PATH:/home/ubuntu/.nvm/versions/node/v21.7.3/bin && cd /home/ubuntu/repo/QA-BACKEND-GAMERGE/main/dist && pm2 restart QA-BACKEND-GAMERGE --output /dev/null --error /dev/null && pm2 save"
                     '''
                 }
             }

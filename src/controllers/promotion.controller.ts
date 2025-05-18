@@ -6,12 +6,12 @@ import { HTTP_MESSAGE } from '../utils/httpStatus';
 import { Schema } from 'mongoose';
 import { CustomError } from '../utils/custom-error';
 import { IPagination } from '../interfaces/news.interface';
+import { CustomRequest } from '../interfaces/auth.interface';
 
 
 class PromotionController {
     constructor(private promotionServices: PromotionServices = new PromotionServices()) { }
     createPromotions = async (req: Request, res: Response): Promise<any> => {
-        logger.info("Create promotion endpoint hit.");
 
         try {
             const promotion = await this.promotionServices.createPromotion(req?.body);
@@ -20,12 +20,29 @@ class PromotionController {
             return sendErrorResponse(res, error, error.message);
         }
     }
-
-    getPromotions = async (req: Request, res: Response): Promise<any> => {
-        logger.info("Get pormotions endpoint hit.");
+    
+     getUnreadCount = async (req: CustomRequest, res: Response): Promise<any> => {
+            const userId=req.user?.id  as Schema.Types.ObjectId;
+            try {
+                const count = await this.promotionServices.getUnreadCount(userId);
+                return sendSuccessResponse(res, "ok", count);
+            } catch (error: any) {
+                return sendErrorResponse(res, error, error.message);
+            }
+        }
+        markAllAsRead = async (req: CustomRequest, res: Response): Promise<any> => {
+            const userId=req.user?.id  as Schema.Types.ObjectId;
+            try {
+                await this.promotionServices.markAllAsRead(userId);
+                return sendSuccessResponse(res, "ok", {});
+            } catch (error: any) {
+                return sendErrorResponse(res, error, error.message);
+            }
+        }
+    getPromotions = async (req: CustomRequest, res: Response): Promise<any> => {
 
         const { page, limit, sort, search } = req.query;
-
+          const userId=req.user?.id  as Schema.Types.ObjectId;
         try {
 
             const query: IPagination = {
@@ -35,8 +52,7 @@ class PromotionController {
                 search: search ? String(search) : '' // Ensure search is always a string
             };
 
-            const items = await this.promotionServices.getPromotions(query);
-            logger.info("News fetched successfully");
+            const items = await this.promotionServices.getPromotions(userId,query);
 
             return sendSuccessResponse(res, HTTP_MESSAGE.OK, items);
         } catch (error: any) {
@@ -48,10 +64,8 @@ class PromotionController {
         }
     }
     getPromotionById = async (req: Request, res: Response): Promise<any> => {
-        logger.info("Get promotion by id endpoint hit.");
         const { id } = (req.params as any) as { id: Schema.Types.ObjectId };
         try {
-            console.log('query', req?.query)
             const items = await this.promotionServices.getPromotionById(id);
             return sendSuccessResponse(res, "ok", items);
         } catch (error: any) {
@@ -59,7 +73,6 @@ class PromotionController {
         }
     }
     deletePromotion = async (req: Request, res: Response): Promise<any> => {
-        logger.info("Delete promotion endpoint hit.");
         try {
             const { id } = (req?.params as any) as { id: Schema.Types.ObjectId };
             await this.promotionServices.deletePromotion(id);
@@ -71,7 +84,6 @@ class PromotionController {
     }
 
     updatePromotion = async (req: Request, res: Response): Promise<any> => {
-        logger.info("Update promotion endpoint hit.");
         const { id } = (req?.params as any) as { id: Schema.Types.ObjectId };
         const payload = req?.body;
         try {

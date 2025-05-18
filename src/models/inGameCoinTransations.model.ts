@@ -2,7 +2,8 @@ import mongoose from 'mongoose';
 
 export interface InTransaction extends mongoose.Document {
     userId: mongoose.Types.ObjectId;
-    type: 'game_play' | 'reward' | 'referral' | 'task' | 'admin_adjustment' | 'spin_fee';
+    // type: 'game_play' | 'reward' | 'referral' | 'task' | 'admin_adjustment' | 'spin_fee' | 'spin_reward';
+    type: 'CREDITED' | 'DEBITED';
     description: string;
     title: string;
     imgUrl: string;
@@ -17,7 +18,8 @@ const InGameCoinTransactionsSchema = new mongoose.Schema<InTransaction>(
         type: {
             type: String,
             required: true,
-            enum: ['game_entry_fee','winner_reward', 'reward', 'referral', 'task', 'admin_adjustment','spin_fee'],
+            // enum: ['game_entry_fee','winner_reward', 'reward', 'referral', 'task', 'admin_adjustment','spin_fee','spin_reward'],
+            enum: ['CREDITED','DEBITED'],
         },
         description: { type: String, required: true },
         amount: { type: Number, required: true },

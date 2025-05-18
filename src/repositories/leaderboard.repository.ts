@@ -62,7 +62,6 @@ export class leaderboardRepository {
           //   rank: index + 1
           // }));
           
-          // console.log(leaderBoardWithRanks);
 
           // const moveToFrontById = (array: any[], targetId: Schema.Types.ObjectId): any[] => {
           //   const index = array.findIndex((item) => item.userId.equals(targetId));
@@ -84,7 +83,6 @@ export class leaderboardRepository {
           // Move current user to top
           const result = duplicateToFrontById(leaderBoardWithRanks, userId);
           
-          console.log(result);
           
         return {
             data: {

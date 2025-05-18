@@ -1,0 +1,238 @@
+[
+    {
+        "module": "Dashboard",
+        "selectAll":false,
+        "access": {
+            "read": false,
+            "create": false
+
+        }
+    },
+    {
+        "module": "Users",
+        "selectAll":false,
+        "access": {
+            "read": false,
+            "update": false,
+            "delete": false
+        }
+    },
+    {
+        "module": "Total Bots",
+        "selectAll":false,
+        "access": {
+            "read": false,
+            "create": false,
+            "update": false,
+            "delete": false
+        }
+    },
+    {
+        "module": "All Game",
+        "selectAll":false,
+        "access": {
+            "read": false,
+            "create": false,
+            "update": false,
+            "delete": false
+        }
+    },
+    {
+        "module": "Sub Game",
+        "selectAll":false,
+        "access": {
+            "read": false,
+            "create": false,
+            "update": false,
+            "delete": false
+        }
+    },
+    {
+        "module": "Practice Game",
+        "selectAll":false,
+        "access": {
+            "read": false,
+            "create": false,
+            "update": false,
+            "delete": false
+        }
+    },
+    {
+        "module": "Tournaments",
+        "selectAll":false,
+        "access": {
+            "read": false,
+            "create": false,
+            "update": false,
+            "delete": false
+        }
+    },
+    {
+        "module": "Match History",
+        "selectAll":false,
+        "access": {
+            "read": false,
+            "export":false
+        }
+    },
+    {
+        "module": "Airdrop",
+        "selectAll":false,
+        "access": {
+            "read": false,
+            "create": false,
+            "update": false,
+            "delete": false
+        }
+    },
+    {
+        "module": "Airdrop Event",
+        "selectAll":false,
+        "access": {
+            "read": false,
+            "create": false,
+            "update": false,
+            "delete": false
+        }
+    },
+    {
+        "module": "All Tournaments",
+        "selectAll":false,
+        "access": {
+            "read": false
+        }
+    },
+    {
+        "module": "Withdraw Request",
+        "selectAll":false,
+        "access": {
+            "read": false,
+            "reject": false,
+            "approve": false,
+            "export": false
+        }
+    },
+    {
+        "module": "Deposits",
+        "selectAll":false,
+        "access": {
+            "read": false,
+            "export":false
+        }
+    },
+    {
+        "module": "Spin Combination",
+        "selectAll":false,
+        "access": {
+            "read": false,
+            "create": false,
+            "update": false,
+            "delete": false
+        }
+    },
+    {
+        "module": "Spin History",
+        "selectAll":false,
+        "access": {
+            "read": false
+        }
+    },
+    {
+        "module": "Gamerge Coin",
+        "selectAll":false,
+        "access": {
+            "read": false,
+            "update":false,
+            "export": false
+        }
+    },
+    {
+        "module": "Referral History",
+        "selectAll":false,
+        "access": {
+            "read": false
+        }
+    },
+    {
+        "module": "Transactions",
+        "selectAll":false,
+        "access": {
+            "read": false,
+            "viewWalletDetails":false,
+            "export":false
+        }
+    },
+    {
+        "module": "Burning Event",
+        "selectAll":false,
+        "access": {
+            "read": false,
+            "create": false,
+            "update": false,
+            "delete": false
+        }
+    },
+    {
+        "module": "User Chats",
+        "selectAll":false,
+        "access": {
+            "read": false,
+            "readChat": false,
+            "chat": false
+        }
+    },
+    {
+        "module": "News",
+        "selectAll":false,
+        "access": {
+            "read": false,
+            "create": false,
+            "update": false,
+            "delete": false
+        }
+    },
+    {
+        "module": "Promotions",
+        "selectAll":false,
+        "access": {
+            "read": false,
+            "create": false,
+            "update": false,
+            "delete": false
+        }
+    },
+    {
+        "module": "Notifications",
+        "selectAll":false,
+        "access": {
+            "read": false,
+            "create": false,
+            "update": false,
+            "delete": false
+        }
+    },
+    {
+        "module": "Settings",
+        "selectAll":false,
+        "access": {
+            "read": false,
+            "update": false,
+            "createBanner": false,
+            "updateBanner": false,
+            "deleteBanner": false,
+            "updatePopup": false,
+            "createPopup": false,
+            "createLootCoin": false,
+            "removeLootCoin": false
+        }
+    },
+    {
+        "module": "Security",
+        "selectAll":false,
+        "access": {
+            "read": false,
+            "create": false,
+            "delete": false
+        }
+    }
+]

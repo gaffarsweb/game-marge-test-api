@@ -8,7 +8,6 @@ import { CustomRequest } from "../interfaces/auth.interface";
 class AirdropCampaignController{
     constructor (private airdropService:AirdropService=new AirdropService()) {}
     createAirdrop = async (req: Request, res: Response):Promise<any> => {
-        logger.info("Create Airdrop endpoint hit.");
         try{
             const airdrop = await this.airdropService.createAirdrop(req.body);
             return sendSuccessResponse(res, "Airdrop created successfully.", airdrop);
@@ -20,7 +19,6 @@ class AirdropCampaignController{
       };
       
     getAllAirdrops = async (req: Request, res: Response):Promise<any> => {
-        logger.info("Get all Airdrops endpoint hit.");
         try{
             const airdrops = await this.airdropService.getAllAirdrops(req.query);
             return sendSuccessResponse(res, "Airdrops fetched successfully.", airdrops);
@@ -34,7 +32,6 @@ class AirdropCampaignController{
     }
 
     updateAirdrop = async (req: Request, res: Response):Promise<any> => {
-        logger.info("Update Airdrop endpoint hit.");
         try{
             const airdrop = await this.airdropService.updateAirdrop(req.params.id, req.body);
             return sendSuccessResponse(res, "Airdrop updated successfully.", airdrop);
@@ -45,7 +42,6 @@ class AirdropCampaignController{
     }
 
     deleteAirdrop = async (req: Request, res: Response):Promise<any> => {
-        logger.info("Delete Airdrop endpoint hit.");
         try{
             const airdrop = await this.airdropService.deleteAirdropById(req.params.id);
             return sendSuccessResponse(res, "Airdrop deleted successfully.", airdrop);
@@ -56,7 +52,6 @@ class AirdropCampaignController{
     }
 
     getActiveAirdrops = async (req: Request, res: Response):Promise<any> => {
-        logger.info("Get active Airdrops endpoint hit.");
         try{
             const airdrops = await this.airdropService.getActiveAirdrops();
             return sendSuccessResponse(res, "Active airdrops fetched successfully.", airdrops);
@@ -70,7 +65,6 @@ class AirdropCampaignController{
     }
 
     getAirdropById = async (req: CustomRequest, res: Response):Promise<any> => {
-        logger.info("Get Airdrop by ID endpoint hit.");
         const userId = req.user?.id!;
         try{
             const airdrop = await this.airdropService.getAirdropById(userId,req.params.id);
@@ -82,7 +76,6 @@ class AirdropCampaignController{
     }
 
     claimTaskReward = async (req: CustomRequest, res: Response):Promise<any> => {
-        logger.info("Claim Task Reward endpoint hit.");
         try{
             const payload={
                 userId:(req.user?.id as any) as string,
@@ -98,7 +91,6 @@ class AirdropCampaignController{
     }
 
     getUserCompletedTasks = async (req: CustomRequest, res: Response):Promise<any> => {
-        logger.info("Get User Completed Tasks endpoint hit.");
         try{
             const payload={
                 userId:(req.user?.id as any) as string,
@@ -113,7 +105,6 @@ class AirdropCampaignController{
     }
 
     getAirdropWithoutPage = async (req: Request, res: Response):Promise<any> => {
-        logger.info("Get all Airdrops endpoint hit.");
         try{
             const airdrops = await this.airdropService.getAirdropWithoutPage();
             return sendSuccessResponse(res, "Airdrops fetched successfully.", airdrops);

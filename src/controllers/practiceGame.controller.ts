@@ -14,10 +14,8 @@ class practiceGameController {
 
     createNewPracticeGame = async (req: Request, res: Response): Promise<any> => {
         const payload = req.body
-        logger.info("Create new practice  endpoint hit." + JSON.stringify(payload));
         try {
             const newSubGame = await this.practiceGameServices.create(payload);
-            logger.info("Sub game created successfully.")
             return sendSuccessResponse(res, "practice game created successfully", newSubGame);
         } catch (error: any) {
             logger.error("Failed to create new practicee game", error);
@@ -29,11 +27,9 @@ class practiceGameController {
     }
 
     getAllPracticeGameByGameId = async (req: any, res: Response): Promise<any> => {
-        logger.info("Get all subgames endpoint hit.");
-        const { gameId } = (req.params as any) as { gameId: Schema.Types.ObjectId }
-        const { page, limit, sort, search } = req.query;
+        // const { gameId } = (req.params as any) as { gameId: Schema.Types.ObjectId }
+        const { page, limit, sort, search,gameId } = req.query;
         // const userId = req.user?.id!;
-
 
         try {
             // if (userId) {
@@ -63,7 +59,6 @@ class practiceGameController {
 
             };
             const subgames = await this.practiceGameServices.getAllPracticeGameByGameId(gameId, query);
-            logger.info("Subgames retrieved successfully.");
             return sendSuccessResponse(res, "practive game retrieved successfully.", subgames);
         } catch (error: any) {
             logger.error(`Failed to retrieve subgames, error:${error}`);
@@ -74,11 +69,9 @@ class practiceGameController {
         }
     }
     getSubgame = async (req: Request, res: Response): Promise<any> => {
-        logger.info("Get subgame endpoint hit.");
         const { practiceGameId } = (req.params as any) as { practiceGameId: Schema.Types.ObjectId }
         try {
             const subgame = await this.practiceGameServices.getSubGame(practiceGameId);
-            logger.info("Subgame retrieved successfully.");
             return sendSuccessResponse(res, "practice game retrieved successfully.", subgame);
         } catch (error: any) {
             logger.error(`Failed to retrieve subgame, error:${error}`);
@@ -89,12 +82,10 @@ class practiceGameController {
         }
     }
     updateSubgame = async (req: Request, res: Response): Promise<any> => {
-        logger.info("Update subgame endpoint hit.");
         const { practiceGameId } = (req.params as any) as { practiceGameId: Schema.Types.ObjectId };
         const payload = req.body as any;
         try {
             const subgame = await this.practiceGameServices.update(practiceGameId, payload);
-            logger.info("Subgame updated successfully.");
             return sendSuccessResponse(res, "practice game updated successfully.", subgame);
         } catch (error: any) {
             logger.error(`Failed to delete subgame, error:${error}`);
@@ -105,11 +96,9 @@ class practiceGameController {
         }
     }
     deleteSubgame = async (req: Request, res: Response): Promise<any> => {
-        logger.info("Delete subgame endpoint hit.");
         const { practiceGameId } = (req.params as any) as { practiceGameId: Schema.Types.ObjectId }
         try {
             const subgame = await this.practiceGameServices.delete(practiceGameId);
-            logger.info("Subgame deleted successfully.");
             return sendSuccessResponse(res, "practice game deleted successfully.", subgame);
         } catch (error: any) {
             logger.error(`Failed to delete subgame, error:${error}`);
@@ -120,7 +109,6 @@ class practiceGameController {
         }
     }
     playPracticeGame = async (req: any, res: Response): Promise<any> => {
-        logger.info("Delete subgame endpoint hit.");
         const userId = req.user?.id!;
 
         const { practiceGameId } = (req.params as any) as { practiceGameId: Schema.Types.ObjectId }
@@ -159,7 +147,6 @@ class practiceGameController {
         }
     }
     practiceGameFinished = async (req: any, res: Response): Promise<any> => {
-        logger.info("Delete subgame endpoint hit.");
         const userId = req.user?.id!;
         const { winingPoints } = req.body;
 

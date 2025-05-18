@@ -1,28 +1,18 @@
-import mongoose, {  Document } from "mongoose";
+import { Schema, model, Document, Types } from "mongoose";
 
 export interface IChatMessage extends Document {
-    senderId: mongoose.Schema.Types.ObjectId;
-    receiverId: mongoose.Schema.Types.ObjectId;
-    text: string;
-    createdAt: Date;
+  senderId: Types.ObjectId;
+  receiverId: Types.ObjectId;
+  text: string;
+  isRead: boolean;
+  createdAt: Date;
 }
 
-  
-  const ChatMessageSchema = new mongoose.Schema<IChatMessage>({
-    senderId: {
-      type: mongoose.Schema.Types.ObjectId,
-      required: true,
-      ref: "User",
-    },
-    receiverId: {
-      type: mongoose.Schema.Types.ObjectId,
-      required: true,
-      ref: "User",
-    },
-    text: {
-      type: String,
-    }
-  },{timestamps:true});
+const ChatMessageSchema = new Schema<IChatMessage>({
+  senderId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+  receiverId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+  text: { type: String, required: true },
+  isRead: { type: Boolean, default: false }
+}, { timestamps: true });
 
-const ChatMessage = mongoose.model<IChatMessage>("ChatMessage", ChatMessageSchema);
-export default ChatMessage;
+export default model<IChatMessage>("ChatMessage", ChatMessageSchema);

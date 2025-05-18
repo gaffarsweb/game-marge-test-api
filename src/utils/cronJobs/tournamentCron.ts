@@ -4,8 +4,8 @@ import { logger } from "../logger";
 import Tournament from "../../models/tournament.model";
 
 export const startTournamentRewardCron = () => {
-  cron.schedule("*/5 * * * *", async () => {
-    logger.info("Running tournament reward cron...");
+  cron.schedule("*/1 * * * *", async () => {
+    // logger.info("Running tournament reward cron...");
     try {
       await distributeTournamentRewards();
     } catch (error: any) {
@@ -16,7 +16,7 @@ export const startTournamentRewardCron = () => {
 
 export const startTournamentStatusUpdateCron = () => {
   cron.schedule("*/1 * * * *", async () => {
-    logger.info("Running tournament status update cron...");
+    // logger.info("Running tournament status update cron...");
 
     const now = new Date();
 
@@ -30,7 +30,7 @@ export const startTournamentStatusUpdateCron = () => {
         },
         { $set: { status: "ongoing" } }
       );
-      logger.info(`✅ Updated to ongoing: ${ongoingResult.modifiedCount}`);
+      // logger.info(`✅ Updated to ongoing: ${ongoingResult.modifiedCount}`);
 
       // 2. Update to "completed"
       const completedResult = await Tournament.updateMany(
@@ -40,7 +40,7 @@ export const startTournamentStatusUpdateCron = () => {
         },
         { $set: { status: "completed" } }
       );
-      logger.info(`✅ Updated to completed: ${completedResult.modifiedCount}`);
+      // logger.info(`✅ Updated to completed: ${completedResult.modifiedCount}`);
 
       // 3. Update to "upcoming" if modified
       const upcomingResult = await Tournament.updateMany(
@@ -50,7 +50,7 @@ export const startTournamentStatusUpdateCron = () => {
         },
         { $set: { status: "upcoming" } }
       );
-      logger.info(`✅ Updated to upcoming: ${upcomingResult.modifiedCount}`);
+      // logger.info(`✅ Updated to upcoming: ${upcomingResult.modifiedCount}`);
     } catch (error: any) {
       logger.error("❌ Error in tournament status cron:", error.message || error);
     }

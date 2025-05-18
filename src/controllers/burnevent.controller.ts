@@ -10,7 +10,6 @@ class BurnEventController {
     constructor(private burnEventService:BurnEventService=new BurnEventService()) {}
 
  getBurnEvent=async(req:Request,res:Response):Promise<any>=>{
-    logger.info("Get burning event endpoint hit.");
     try{
         const burnevent=await this.burnEventService.getBurnEvents();
         return sendSuccessResponse(res,"Burning event fetched successfully",burnevent);
@@ -20,8 +19,6 @@ class BurnEventController {
     }
  }
  getBurnEventById=async(req:Request, res:Response):Promise<any>=>{
-    logger.info("Get burning event by id endpoint hit.");
-    console.log("Event id:", req.params.id);
     try{
         const burnevent=await this.burnEventService.getBurnEventById(req.params.id);
         return sendSuccessResponse(res, "Burning event fetched successfully", burnevent);
@@ -32,7 +29,6 @@ class BurnEventController {
  }
 
  createBurnEvent=async(req:CustomRequest, res:Response):Promise<any>=>{
-    logger.info("Create a new burning event endpoint hit.");
     const userId=req.user?.id;
     try{
         const burnevent=await this.burnEventService.createBurnEvent({...req.body,userId});
@@ -45,7 +41,6 @@ class BurnEventController {
 
 
  updateBurnEvent=async(req:Request, res:Response):Promise<any>=>{
-    logger.info("Update burning event endpoint hit.");
     try{
         const burnevent=await this.burnEventService.updateBurnEvent(req.params.id, req.body);
         return sendSuccessResponse(res, "Burning event updated successfully", burnevent);
@@ -55,7 +50,6 @@ class BurnEventController {
     }
  }
     deleteBurnEvent=async(req:Request, res:Response):Promise<any>=>{
-        logger.info("Delete burning event endpoint hit.");
         try{
             const burnevent=await this.burnEventService.deleteBurnEvent(req.params.id);
             return sendSuccessResponse(res, "Burning event deleted successfully", burnevent);
@@ -65,7 +59,6 @@ class BurnEventController {
         }
     }
     triggerBurnEvent=async(req:CustomRequest, res:Response):Promise<any>=>{
-        logger.info("Trigger burning event endpoint hit.");
         const userId=(req.user?.id as any) as string;
         const eventId=req.params.id;
         if(!userId || !eventId){
@@ -80,7 +73,6 @@ class BurnEventController {
         }
     }
     getBurnCoinHistory=async(req:Request, res:Response):Promise<any>=>{
-        logger.info("Get burning coin history endpoint hit.");
         try{
             const burnCoinHistory=await this.burnEventService.getBurnCoinHistory();
             return sendSuccessResponse(res, "Burning coin history fetched successfully", burnCoinHistory);

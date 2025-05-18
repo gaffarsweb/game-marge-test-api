@@ -6,9 +6,8 @@ import dotenv from "dotenv";
 import userModel from "../models/user.model";
 import { TokenPayload, Tokens } from "../interfaces/auth.interface";
 
-import { imagekit } from "../config/imagekit";
 
-import fs from "fs"; 
+import { logger } from "./logger";
 
 dotenv.config();
 
@@ -33,8 +32,6 @@ class Utility {
   }
 
   public async sendEmail(options: EmailOptions): Promise<boolean> {
-    console.log("Email details:", options);
-
     try {
       const transporter = nodemailer.createTransport({
         service: "gmail",
@@ -54,10 +51,9 @@ class Utility {
       };
 
       await transporter.sendMail(mailOptions);
-      console.log(`Email sent to ${options.email}`);
       return true;
     } catch (error: any) {
-      console.error("Failed to send email:", error.message || error);
+      logger.error("Failed to send email:", error.message || error);
       return false;
     }
   }
@@ -90,20 +86,6 @@ class Utility {
       return otpToken;
     } catch (error: any) {
       throw new Error("Error while generating the otp token: " + error.message);
-    }
-  }
-  public async uploadMedia(file: Express.Multer.File): Promise<any> {
-    try {
-      // ✅ Ensure `file.buffer` is available (for `memoryStorage()`)
-      const fileBuffer = file.buffer || fs.readFileSync(file.path); // ✅ Fallback for `diskStorage()`
-
-      return await imagekit.upload({
-        file: fileBuffer, // ✅ Handle both memory and disk storage cases
-        fileName: `${Date.now()}_${file.originalname}`,
-        folder: "uploads",
-      });
-    } catch (error: any) {
-      throw new Error(`Failed to upload image: ${error.message}`);
     }
   }
  public  generateReferralCode():string{

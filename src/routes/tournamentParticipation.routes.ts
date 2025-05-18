@@ -10,7 +10,7 @@ const router=Router();
 router.post('/join',authenticateRequest,validateCreateParticipation,validateRequest,tournamentParticipationController.joinTournament);
 router.get('/:tournamentId',authenticateRequest,tournamentParticipationController.getParticipationByTournamentId);
 router.get('/user/:userId', authenticateRequest, tournamentParticipationController.getParticipationByUserId);
-router.put('/:participationId', authenticateRequest,validateUpdateParticapation,validateRequest, tournamentParticipationController.updateParticipation);
+router.put('/:participationId',authenticateRequest,validateUpdateParticapation,validateRequest, tournamentParticipationController.updateParticipation);
 
 
 

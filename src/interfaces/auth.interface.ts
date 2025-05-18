@@ -12,10 +12,11 @@ export interface IAuthRepository {
   findUserById(id: Schema.Types.ObjectId): Promise<IUser | null>;
   handleSocialLogin(payload: ISocialLogin): Promise<IUser>;
   deleteUserById(id: Schema.Types.ObjectId): Promise<IUser>;
-  rewardReferrer(referralCode: string):Promise<void>;
+  rewardReferrer(referralCode: string):Promise<boolean>;
 }
 export interface IRegister{
-  name: string;
+  firstName: string;
+  lastName?:string;
   email: string;
   password: string;
   country:string;
@@ -27,7 +28,8 @@ export interface IRegister{
   otpExpiredAt?: Date;
 }
 export interface ISocialLogin{
-  name:string;
+  firstName:string;
+  lastName?:string;
   email: string;
   avatarUrl: string;
   provider:string;
@@ -39,7 +41,8 @@ export interface ILogin{
 }
 export interface IFilters{
   email?:string;
-  name?:string;
+  firstName?:string;
+  lastName?:string;
   country?:string;
   role?:string;
   isEmailVerified?:boolean;
@@ -49,7 +52,8 @@ export interface IUpdatePassword{
   newPassword: string;
 }
 export interface IUpdateUser{
-  name?: string;
+  firstName?: string;
+  lastName?:string;
   country?: string;
   password?: string;
   avatarUrl?: string;

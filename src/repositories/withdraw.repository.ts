@@ -9,6 +9,11 @@ import { ethers } from "ethers";
 import Transaction from "../models/transaction.model";
 import { transactionStatus, transactionType } from "../utils/enums";
 import utility from "../utils/utility";
+import { logger } from "../utils/logger";
+import { Response } from "express";
+import dayjs from "dayjs";
+import generateCSV from "../utils/export/generateCSV";
+import networksModel from "../models/networks.model";
 const ERC20_ABI = [
     "function transfer(address recipient, uint256 amount) public returns (bool)",
     "function decimals() view returns (uint8)"
@@ -17,12 +22,13 @@ export class withdrawServices {
 
 
 
-    async allWithdrawalRequests(userId: Schema.Types.ObjectId, query: any): Promise<any> {
+    async allWithdrawalRequests(query: { page?: string, limit?: string, sort?: string, search?: string, filter?: string, startDate?: string, endDate?: string, isExport?: string }, res: Response): Promise<any> {
         try {
             const page = Number(query.page) || 1;
             const limit = Number(query.limit) || 10;
             const skip = (page - 1) * limit;
             const search = query.search?.trim();
+            const filter = query.filter ? JSON.parse(query.filter) : {};
 
             let sortBy: any = {};
             let filterby: any = {};
@@ -32,9 +38,20 @@ export class withdrawServices {
                 sortBy.createdAt = -1;
             }
 
-            if (query.filter && (query.filter === "approved" || query.filter === "rejected")) {
-                filterby.status = query.filter;
+            if (filter?.currency) {
+                filterby.currency = filter?.currency;
             }
+
+            if (filter?.date?.requestFrom && filter?.date?.requestTo) {
+                const startDate = new Date(new Date(filter?.date?.requestFrom).setHours(0, 0, 0, 0));
+                const endDate = new Date(new Date(filter?.date?.requestTo).setHours(23, 59, 59, 999));
+
+                filterby.createdAt = {
+                    $gte: startDate,
+                    $lte: endDate,
+                };
+            }
+
 
             const pipeline: any[] = [
                 {
@@ -97,11 +114,65 @@ export class withdrawServices {
                     },
                 },
                 { $sort: sortBy },
-                { $skip: skip },
-                { $limit: limit }
+
             );
 
+            if (!query?.isExport) {
+                pipeline.push(
+                    { $skip: skip },
+                    { $limit: limit }
+                )
+            }
+
             const result = await Withdraw.aggregate(pipeline);
+
+            if (query?.isExport) {
+                console.log("Result: ", JSON.stringify(result, null, 2));
+                const headersMap: { [key: string]: string } = {
+                    "User Name": "User Name",
+                    "Avatar Url": "Avatar Url",
+                    "Email": "Email",
+                    "Withdrawal Address": "Withdrawal Address",
+                    "Requested Amount": "Requested Amount",
+                    "Date & Time": "Date & Time",
+                    "Currency": "Currency",
+                    "Network": "Network",
+                    "Request Status": "Request Status",
+                    "Available Balance": "Available Balance",
+                };
+
+                const plainRecords = result.map((request: any) => {
+                    const respectiveBalance = request.walletBalances.find(
+                        (item: { currency: string; network: string }) =>
+                            item.currency === request.currency &&
+                            item.network === request.network
+                    );
+
+                    const record: any = {
+                        "User Name": request?.user?.name || "",
+                        "Avatar Url": request?.user?.avatarUrl,
+                        "Email": request?.user?.email || "",
+                        "Withdrawal Address": request?.withdrawToAddress || "",
+                        "Requested Amount": request?.withdrawAmount || "",
+                        "Date & Time": dayjs(request?.createdAt).format("YYYY-MM-DD HH:mm:ss"),
+                        "Currency": request?.currency,
+                        "Network": request?.network,
+                        "Request Status": request?.status,
+                        "Available Balance": respectiveBalance?.availableBalance,
+                    };
+
+                    return record;
+                });
+
+                const fileName = `withdrawRequests-${dayjs().format("YYYY-MM-DD-HH-mm-ss")}.csv`;
+                await generateCSV(plainRecords, headersMap, fileName, res);
+
+                return {
+                    status: true,
+                    code: 200,
+                    data: "CSV file downloaded successfully"
+                };
+            }
 
             const countPipeline = [...pipeline.filter(stage => ('$match' in stage || '$lookup' in stage || '$unwind' in stage))];
             countPipeline.push({ $count: 'total' });
@@ -121,7 +192,7 @@ export class withdrawServices {
                 },
             };
         } catch (error) {
-            console.error("Error while processing withdrawal:", error);
+            logger.error("Error while processing withdrawal:", error);
             return {
                 status: false,
                 code: 500,
@@ -163,7 +234,7 @@ export class withdrawServices {
             };
 
         } catch (error) {
-            console.error("Error while processing withdrawal:", error);
+            logger.error("Error while processing withdrawal:", error);
             return {
                 status: false,
                 code: 500,
@@ -204,7 +275,7 @@ export class withdrawServices {
             }
 
         } catch (error) {
-            console.error("Error while processing withdrawal:", error);
+            logger.error("Error while processing withdrawal:", error);
             return {
                 status: false,
                 code: 500,
@@ -293,7 +364,7 @@ export class withdrawServices {
 
 
         } catch (error) {
-            console.error("Error while processing withdrawal:", error);
+            logger.error("Error while processing withdrawal:", error);
             return {
                 status: false,
                 code: 500,
@@ -307,6 +378,7 @@ export class withdrawServices {
         const session = await mongoose.startSession();
         session.startTransaction();
         try {
+            const networks = await networksModel.find().sort({ _id: 1 });
             const withdrawRequest = await Withdraw.findById(requestId).session(session);
             if (!withdrawRequest) {
                 await session.abortTransaction();
@@ -414,7 +486,7 @@ export class withdrawServices {
                 data: `Withdrawal request approved and ${withdrawRequest.withdrawAmount} ${withdrawRequest.currency} sent successfully on ${withdrawRequest.network}.`,
             };
         } catch (error) {
-            console.error("Error approving withdrawal request:", error);
+            logger.error("Error approving withdrawal request:", error);
             await session.abortTransaction();
             session.endSession();
             return {
@@ -486,7 +558,7 @@ export class withdrawServices {
                 data: `Withdrawal request rejected for ${withdrawRequest.withdrawAmount} ${withdrawRequest.currency} on ${withdrawRequest.network}.`,
             };
         } catch (error) {
-            console.error("Error rejecting withdrawal request:", error);
+            logger.error("Error rejecting withdrawal request:", error);
             await session.abortTransaction();
             session.endSession();
             return {
@@ -499,6 +571,7 @@ export class withdrawServices {
 
 
     async getTokenDetails(currency: string, networkName: string): Promise<any> {
+        const networks = await networksModel.find().sort({ _id: 1 });
         const network = networks.find(n => n.name === networkName);
 
         if (network && network.currency === currency) {

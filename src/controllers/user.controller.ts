@@ -10,41 +10,11 @@ import { IPagination } from "../interfaces/news.interface";
 class UserController {
   constructor(private userService: UserServices = new UserServices()) { }
 
-  updateProfileAvatar = async (
-    req: CustomRequest,
-    res: Response
-  ): Promise<any> => {
-    const userId = req.user?.id as Schema.Types.ObjectId;
-
-    try {
-      const image = req.file as Express.Multer.File;
-      if (!image) {
-        return sendErrorResponse(
-          res,
-          "No file uploaded",
-          "Please upload an image."
-        );
-      }
-
-      const profileUrl = await this.userService.updateProfilePicture(
-        userId,
-        image
-      );
-      return sendSuccessResponse(res, "Profile picture updated", {
-        avatarUrl: profileUrl,
-      });
-    } catch (error: any) {
-      return sendErrorResponse(res, error, error.message);
-    }
-  };
-
   updateUserProfile = async (req: CustomRequest, res: Response): Promise<any> => {
-    logger.info("Update Profile Endpoint hit.");
     const payload = req.body as IUpdateUser;
     const userId = req.user?.id!;
     try {
       const result = await this.userService.editUser(userId, payload);
-      logger.info("User Profile Updated Successfully");
       return sendSuccessResponse(res, "Profile updated.", result);
     } catch (error: any) {
       logger.error(`${error.message || "Error updating user profile"}`);
@@ -53,15 +23,12 @@ class UserController {
   };
   updateUserStatus = async (req: any, res: Response): Promise<any> => {
     const userId = req.body.id;
-    logger.info(`Update Profile Endpoint hit. User ID: ${userId}`);
 
     if (!userId) {
-      logger.error("User ID is missing in the request body");
       return sendErrorResponse(res, "User ID is required.");
     }
     try {
       const result = await this.userService.updateStatus(userId);
-      logger.info("User Profile Updated Successfully");
       return sendSuccessResponse(res, "Profile updated.", result);
     } catch (error: any) {
       logger.error(`${error.message || "Error updating user profile"}`);
@@ -95,7 +62,6 @@ class UserController {
 
   getUsers = async (req: Request, res: Response): Promise<any> => {
     try {
-      console.log('called in get users')
       const { page = 1, limit = 10 , sort = 1, filter, search } =  req.query as unknown as IPagination; 
       const users = await this.userService.getAllUsers({page, limit, sort, filter, search});
       return sendSuccessResponse(res, "Users found", users);
@@ -109,6 +75,19 @@ class UserController {
       const { referralCode } = req.params;
       const referredUsers = await this.userService.findAllUsersReferredByAUser(referralCode as string);
       return sendSuccessResponse(res, "Referred users found", referredUsers);
+    } catch (error: any) {
+      logger.error(`Error retrieving referred users:error: ${error}`);
+      if (error instanceof CustomError) {
+        return sendErrorResponse(res, error, error.message, error.statusCode);
+      }
+      return sendErrorResponse(res, error, error.message);
+    }
+  }
+  getAllAdmins = async (req: Request, res: Response): Promise<any> => {
+    try {
+      const query = req.query
+      const admins = await this.userService.getAllAdmins(query);
+      return sendSuccessResponse(res, "Referred users found", admins);
     } catch (error: any) {
       logger.error(`Error retrieving referred users:error: ${error}`);
       if (error instanceof CustomError) {

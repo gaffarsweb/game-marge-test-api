@@ -22,6 +22,23 @@ export const gameIdValidaton = [
     .isString()
     .withMessage("network should be a string")
 ];
+export const getGameGraphData = [
+  param("gameId")
+    .exists()
+    .withMessage("Game Id is required"),
+
+  query("startDate")
+    .exists()
+    .withMessage("Start date is required")
+    .isISO8601()
+    .withMessage("Start date must be in YYYY-MM-DD format"),
+
+  query("endDate")
+    .exists()
+    .withMessage("End date is required")
+    .isISO8601()
+    .withMessage("End date must be in YYYY-MM-DD format"),
+];
 
 export const updateGameValidation = [
   param("gameId")
@@ -50,3 +67,4 @@ export const getGameHistoryValidation=[
     query('limit').optional().isInt({gt:0}).withMessage('Limit must be a positive integer'),
     query('page').optional().isInt({gt:0}).withMessage('Page must be a positive integer')
 ]
+

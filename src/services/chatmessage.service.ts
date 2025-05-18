@@ -1,3 +1,4 @@
+import { Schema } from "mongoose";
 import { ChatMessageRepository } from "../repositories/chatmessage.repository";
 import { CustomError } from "../utils/custom-error";
 import { HTTP_STATUS } from "../utils/httpStatus";
@@ -13,13 +14,13 @@ export class ChatMessageService {
         }
         return messages;
     }
-    async addNewMessage(payload: any): Promise<any> {
-        const newMessage = await this.chatMessageRepository.createNewMessage(payload);
-        return newMessage;
-    }
 
-    async getUsersWhoHasMessaged(query: { page?: string, limit?: string, sort?: string, search?: string, filter?: string }): Promise<any> {
-        const newMessage = await this.chatMessageRepository.getUsersWhoHasMessaged(query);
+    async getAdminConversations(): Promise<any> {
+        const conversations = await this.chatMessageRepository.getAdminConversations();
+        return conversations;
+    }
+    async getUserDetails({userId}: { userId: string}): Promise<any> {
+        const newMessage = await this.chatMessageRepository.getUserDetails({userId});
         return newMessage;
     }
 }
